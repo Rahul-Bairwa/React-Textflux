@@ -4,7 +4,7 @@ export default function Tooltip({ label, shortcut, theme = 'light', children }) 
   const [show, setShow] = useState(false);
   return (
     <span
-      className="tooltip-wrapper"
+      className="tf-tooltip-wrapper"
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
       onFocus={() => setShow(true)}
@@ -13,18 +13,18 @@ export default function Tooltip({ label, shortcut, theme = 'light', children }) 
       style={{ position: 'relative', display: 'inline-block' }}
     >
       {show && (
-        <span className={`tooltip-bubble ${theme === 'dark' ? 'dark' : ''}`}
+        <span className={`tf-tooltip-bubble ${theme === 'dark' ? 'tf-dark' : ''}`}
           role="tooltip"
         >
-          <span className="tooltip-label">{label}</span>
+          <span className="tf-tooltip-label">{label}</span>
           {shortcut && (
-            <span className="tooltip-shortcut">
+            <span className="tf-tooltip-shortcut">
               {shortcut.split('+').map((key, i) => (
-                <kbd key={i} className="tooltip-key">{key.trim()}</kbd>
+                <kbd key={i} className="tf-tooltip-key">{key.trim()}</kbd>
               ))}
             </span>
           )}
-          <span className="tooltip-arrow" />
+          <span className="tf-tooltip-arrow" />
         </span>
       )}
       {children}

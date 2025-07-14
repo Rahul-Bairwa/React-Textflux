@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { format, isFormatActive } from '../utils/formatting';
 import Tooltip from './Tooltip';
 
@@ -47,8 +47,8 @@ const tooltips = {
   underline: { label: 'Underline', shortcut: 'Ctrl+U' },
   strikethrough: { label: 'Strikethrough', shortcut: 'Ctrl+Shift+S' },
   blockquote: { label: 'Blockquote', shortcut: 'Ctrl+Q' },
-  orderedList: { label: 'Ordered List', shortcut: 'Ctrl+Shift+7' },
-  unorderedList: { label: 'Unordered List', shortcut: 'Ctrl+Shift+8' },
+  orderedList: { label: 'Ordered List', shortcut: 'Ctrl+Shift+L' },
+  unorderedList: { label: 'Unordered List', shortcut: 'Ctrl+Shift+U' },
   image: { label: 'Insert Image', shortcut: '' },
   video: { label: 'Insert Video', shortcut: '' },
   emoji: { label: 'Emoji', shortcut: '' },
@@ -58,7 +58,27 @@ const tooltips = {
 export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting }) {
   const imgInput = useRef();
   const vidInput = useRef();
+  const emojiBtnRef = useRef();
+  const emojiPickerRef = useRef();
   const [showEmoji, setShowEmoji] = useState(false);
+  const [, setRerender] = useState(0);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (!showEmoji) return;
+    function handleClick(e) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(e.target) &&
+        emojiBtnRef.current &&
+        !emojiBtnRef.current.contains(e.target)
+      ) {
+        setShowEmoji(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showEmoji]);
 
   const handleFile = (type) => {
     if (type === 'image') imgInput.current.click();
@@ -66,24 +86,40 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
   };
 
   return (
-    <div className={`toolbar ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`tf-toolbar ${theme === 'dark' ? 'tf-dark' : ''}`}>
       {Object.entries(icons).map(([key, icon]) => {
         if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear') return null;
         let active = false;
         if (key === 'bold' || key === 'italic' || key === 'underline' || key === 'strikethrough') {
           active = isFormatActive(key === 'strikethrough' ? 'strikeThrough' : key);
         }
+        if (key === 'blockquote') {
+          active = isFormatActive('formatBlock');
+        }
+        if (key === 'orderedList') {
+          active = isFormatActive('insertOrderedList');
+        }
+        if (key === 'unorderedList') {
+          active = isFormatActive('insertUnorderedList');
+        }
         return (
           <Tooltip key={key} label={tooltips[key].label} shortcut={tooltips[key].shortcut} theme={theme}>
             <button
               title={tooltips[key].label}
-              className={`toolbar-btn ${active ? 'active' : ''}`}
+              className={`tf-toolbar-btn ${active ? 'active' : ''}`}
               onMouseDown={e => {
                 e.preventDefault();
-                if (key === 'blockquote') format('formatBlock', 'BLOCKQUOTE');
+                if (key === 'blockquote') {
+                  if (isFormatActive('formatBlock')) {
+                    format('formatBlock', 'DIV'); // Toggle off
+                  } else {
+                    format('formatBlock', 'BLOCKQUOTE'); // Toggle on
+                  }
+                }
                 else if (key === 'orderedList') format('insertOrderedList');
                 else if (key === 'unorderedList') format('insertUnorderedList');
                 else format(key === 'strikethrough' ? 'strikeThrough' : key);
+                setRerender(v => v + 1);
               }}
             >
               {icon}
@@ -92,27 +128,34 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
         );
       })}
       <Tooltip label={tooltips.image.label} shortcut={tooltips.image.shortcut} theme={theme}>
-        <button title="Insert Image" className="toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('image');}}>{icons.image}</button>
+        <button title="Insert Image" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('image');}}>{icons.image}</button>
       </Tooltip>
-      <input type="file" accept="image/*" ref={imgInput} className="file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'image'); e.target.value='';}} />
+      <input type="file" accept="image/*" ref={imgInput} className="tf-file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'image'); e.target.value='';}} />
       <Tooltip label={tooltips.video.label} shortcut={tooltips.video.shortcut} theme={theme}>
-        <button title="Insert Video" className="toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('video');}}>{icons.video}</button>
+        <button title="Insert Video" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('video');}}>{icons.video}</button>
       </Tooltip>
-      <input type="file" accept="video/*" ref={vidInput} className="file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'video'); e.target.value='';}} />
-      <div className="relative">
+      <input type="file" accept="video/*" ref={vidInput} className="tf-file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'video'); e.target.value='';}} />
+      <div className="tf-relative">
         <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
-          <button title="Emoji" className="toolbar-btn" onMouseDown={e => {e.preventDefault();setShowEmoji(v=>!v);}}>{icons.emoji}</button>
+          <button
+            ref={emojiBtnRef}
+            title="Emoji"
+            className="tf-toolbar-btn"
+            onMouseDown={e => {e.preventDefault();setShowEmoji(v=>!v);}}
+          >
+            {icons.emoji}
+          </button>
         </Tooltip>
         {showEmoji && (
-          <div className={`emoji-picker max-w-200 max-h-200 overflow-y-auto flex flex-wrap gap-1 ${theme === 'dark' ? 'dark' : ''}`}>
+          <div ref={emojiPickerRef} className={`tf-emoji-picker   ${theme === 'dark' ? 'tf-dark' : ''}`}>
             {emojis.map(emo => (
-              <button key={emo} className="emoji-btn" onMouseDown={e => {e.preventDefault();onInsertEmoji(emo);setShowEmoji(false);}}>{emo}</button>
+              <button key={emo} className="tf-emoji-btn" onMouseDown={e => {e.preventDefault();onInsertEmoji(emo);setShowEmoji(false);}}>{emo}</button>
             ))}
           </div>
         )}
       </div>
       <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
-        <button title="Clear Formatting" className="toolbar-btn" onMouseDown={e => {e.preventDefault();onClearFormatting();}}>{icons.clear}</button>
+        <button title="Clear Formatting" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();onClearFormatting();}}>{icons.clear}</button>
       </Tooltip>
     </div>
   );

@@ -7,14 +7,14 @@ A minimal, modular, and customizable React rich text editor component with:
 - Media rendering (image/video)
 - Dark/light theme support
 - Custom upload logic via callback
-- No CSS framework dependency (pure CSS)
+- **No CSS framework dependency (pure CSS, all classes prefixed with `tf-` for isolation)**
 
 ---
 
 ## Install
 
 ```
-npm install Textflux
+npm install textflux
 ```
 
 ---
@@ -22,7 +22,7 @@ npm install Textflux
 ## Usage
 
 ```jsx
-import Editor from 'Textflux';
+import Editor from 'textflux';
 
 function App() {
   // Example: custom upload logic (S3, base64, etc.)
@@ -64,10 +64,9 @@ You can pass your own mention data as a prop:
 
 ```jsx
 const mentions = [
-  { id: 1, name: 'rahul bairwa', profile_pic: 'https://dyzo.fly.dev/welcome.jpg' },
-  { id: 2, name: 'sejal dev', profile_pic: 'https://dyzo.fly.dev/welcome.jpg' },
-  { id: 3, name: 'tech guru', profile_pic: 'https://dyzo.fly.dev/welcome.jpg' },
-  // ...add more users
+  { id: 1, name: 'John Doe', profile_pic: 'https://example.com/john.jpg' },
+  { id: 2, name: 'Jane Smith', profile_pic: 'https://example.com/jane.jpg' },
+  { id: 3, name: 'Bob Johnson' } // without profile_pic
 ];
 
 <Editor mentions={mentions} />
@@ -87,11 +86,14 @@ const mentions = [
 ## Features
 - **Formatting:** Bold, Italic, Underline, Strikethrough, Blockquote, Lists
 - **@Mention:** User list with profile pic/initials, keyboard navigation
-- **Emoji Picker:** 200+ emojis, fast search
+- **Emoji Picker:** 200+ emojis, fast search, **outside click to close**
 - **Media:** Render images/videos (upload logic is up to you)
 - **Theme:** Light & dark mode (prop)
 - **Keyboard Shortcuts:** Tooltips show shortcuts (e.g. Ctrl+B)
 - **Custom CSS:** No Tailwind/Bootstrap required
+- **CSS Isolation:** All classes prefixed with `tf-` (no conflicts with other frameworks)
+- **Dark Theme Polish:** Selected toolbar button is deep blue for better contrast
+- **Emoji Picker Scrollbar:** Thin, theme-aware, and modern
 
 ---
 
@@ -107,7 +109,8 @@ const mentions = [
 ## Customization
 - **Mentions:** Pass your user list as `mentions` prop
 - **Emoji List:** Edit `Toolbar.jsx` emojis array
-- **CSS:** Edit `index.css` for full style control
+- **CSS:** Edit `src/index.css` for full style control (all classes use `tf-` prefix)
+- **Toolbar/Theme:** Update colors in `src/index.css` for your brand
 
 ---
 

@@ -30,24 +30,24 @@ export default function MentionList({ suggestions, onSelect, position }) {
   if (!suggestions.length) return null;
   return (
     <ul
-      className="mention-list"
+      className="tf-mention-list"
       style={{ top: position.top, left: position.left }}
       ref={listRef}
     >
       {suggestions.map((user, i) => (
         <li
           key={user.id}
-          className={`mention-item${i === selectedIdx ? ' active' : ''}`}
+          className={`tf-mention-item${i === selectedIdx ? ' active' : ''}`}
           onMouseDown={e => {
             e.preventDefault();
             onSelect(user);
           }}
         >
-          <span className='flex items-center gap-2'>
-            <div className=" min-w-[44px] min-h-[44px] w-6 h-6 min-w-6 min-h-6 ">
+          <span className='tf-flex tf-items-center tf-gap-2'>
+            <div className=" tf-min-w-11 tf-min-h-11 tf-w-6 tf-h-6 tf-min-w-6 tf-min-h-6 ">
               <ProfilePicture user={user}  />
             </div>
-            <span className='text-sm'>{user.name}</span>
+            <span className='tf-text-sm'>{user.name}</span>
           </span>
         </li>
       ))}

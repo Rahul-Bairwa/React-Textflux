@@ -11,7 +11,7 @@ export const getUserProfilePicture = (user) => {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=96`;
 };
 
-export const ProfilePicture = ({ user, className = "w-full h-full rounded-full object-cover" }) => {
+export const ProfilePicture = ({ user, className = "tf-w-full tf-h-full tf-rounded-full tf-object-cover" }) => {
   const profilePicUrl = user.profile_pic ? user.profile_pic : getUserProfilePicture(user);
   return (
     <img

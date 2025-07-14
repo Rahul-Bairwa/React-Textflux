@@ -10,6 +10,20 @@ export function format(command, value = null) {
   document.execCommand(command, false, value);
 }
 
-export function isFormatActive(command) {
+export function isFormatActive(command, value = null) {
+  if (command === 'formatBlock') {
+    // Check if current block is blockquote
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return false;
+    let node = selection.anchorNode;
+    while (node) {
+      if (node.nodeName === 'BLOCKQUOTE') return true;
+      node = node.parentNode;
+    }
+    return false;
+  }
+  if (command === 'insertOrderedList' || command === 'insertUnorderedList') {
+    return document.queryCommandState(command);
+  }
   return document.queryCommandState(command);
 } 

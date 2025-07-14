@@ -24,8 +24,8 @@ function getCaretCoordinates() {
   return { top: 0, left: 0 };
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [] }) {
-  const { editorRef, html, json, updateContent } = useEditor();
+export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange }) {
+  const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
@@ -106,8 +106,76 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [] }
   const handleDragOver = e => e.preventDefault();
 
   // Sync content on input
-  const handleInput = () => updateContent();
-
+  const handleInput = () => {
+    updateContent();
+    if (onChange) onChange(editorRef.current?.innerHTML || '');
+  };
+  const handleKeyDown = (e) => {
+    // Bold: Ctrl+B or Cmd+B
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      document.execCommand('bold');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Italic: Ctrl+I or Cmd+I
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      document.execCommand('italic');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Underline: Ctrl+U or Cmd+U
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u') {
+      e.preventDefault();
+      document.execCommand('underline');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Strikethrough: Ctrl+Shift+S
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      document.execCommand('strikeThrough');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Blockquote: Ctrl+Q
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'q') {
+      e.preventDefault();
+      // Toggle logic: if already blockquote, set to DIV, else set to BLOCKQUOTE
+      const selection = window.getSelection();
+      let node = selection.anchorNode;
+      let isBlockquote = false;
+      while (node) {
+        if (node.nodeName === 'BLOCKQUOTE') {
+          isBlockquote = true;
+          break;
+        }
+        node = node.parentNode;
+      }
+      if (isBlockquote) {
+        document.execCommand('formatBlock', false, 'DIV');
+      } else {
+        document.execCommand('formatBlock', false, 'BLOCKQUOTE');
+      }
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Ordered List: Ctrl+Shift+L (recommended)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'l' || e.key === '7')) {
+      e.preventDefault();
+      document.execCommand('insertOrderedList');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+    // Unordered List: Ctrl+Shift+U (recommended)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'u' || e.key === '8')) {
+      e.preventDefault();
+      document.execCommand('insertUnorderedList');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+    }
+  };
   // Insert media from toolbar
   const handleInsertMedia = async (file, type) => {
     let url = '';
@@ -144,19 +212,14 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [] }
   };
 
   return (
-    <div className={`editor-container ${theme === 'dark' ? 'dark' : ''}`}>
-      <Toolbar 
-        theme={theme}
-        onInsertMedia={handleInsertMedia}
-        onInsertEmoji={handleInsertEmoji}
-        onClearFormatting={handleClearFormatting}
-      />
+    <div className={`tf-editor-container ${theme === 'dark' ? 'tf-dark' : ''}`}>
       <div
         ref={editorRef}
-        className="editor-area"
+        className="tf-editor-area"
         contentEditable
         spellCheck={true}
         onKeyUp={handleKeyUp}
+        onKeyDown={handleKeyDown} // <-- Add this
         onInput={handleInput}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -165,6 +228,12 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [] }
       >
         {renderMedia()}
       </div>
+      <Toolbar
+        theme={theme}
+        onInsertMedia={handleInsertMedia}
+        onInsertEmoji={handleInsertEmoji}
+        onClearFormatting={handleClearFormatting}
+      />
       {showMention && (
         <MentionList
           suggestions={mentionSuggestions}
@@ -172,12 +241,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [] }
           position={mentionPos}
         />
       )}
-      <div className="output-container">
-        <div className="output-label">HTML Output:</div>
-        <div className="output-content">{html}</div>
-        <div className="output-label mt-2">JSON Output:</div>
-        <div className="output-content">{JSON.stringify(json, null, 2)}</div>
-      </div>
     </div>
   );
 } 
