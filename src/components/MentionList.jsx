@@ -27,11 +27,21 @@ export default function MentionList({ suggestions, onSelect, position }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [suggestions, selectedIdx, onSelect]);
 
+  useEffect(() => {
+    // Scroll active item into view on keyboard navigation
+    if (listRef.current) {
+      const el = listRef.current.children[selectedIdx];
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIdx]);
+
   if (!suggestions.length) return null;
   return (
     <ul
       className="tf-mention-list"
-      style={{ top: position.top, left: position.left }}
+      style={position.top!=0 && position.left!=0 ? { top: position.top, left: position.left } : {display: 'none'}}
       ref={listRef}
     >
       {suggestions.map((user, i) => (

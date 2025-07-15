@@ -160,12 +160,32 @@ body {
   max-height: 200px;
   overflow-y: auto;
   min-width: 200px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--bg-primary);
+}
+.tf-mention-list::-webkit-scrollbar {
+  width: 6px;
+  background: var(--bg-primary);
+}
+.tf-mention-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 6px;
+}
+.tf-dark .tf-mention-list::-webkit-scrollbar {
+  background: #23272f;
+}
+.tf-dark .tf-mention-list::-webkit-scrollbar-thumb {
+  background: #444b58;
 }
 
 .tf-mention-item {
   padding: 8px 12px;
   cursor: pointer;
   transition: background 0.15s ease;
+  color: var(--text-primary);
+}
+.tf-dark .tf-mention-item {
+  color: #f8f9fa;
 }
 
 .tf-mention-item:hover {
@@ -176,11 +196,13 @@ body {
   background: var(--accent-color);
   color: #fff;
 }
+.tf-dark .tf-mention-item.active {
+  background: #233a5e;
+}
 
 /* Media Block */
 .tf-media-block {
   max-width: 100%;
-  margin: 8px 0;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -464,3 +486,49 @@ body {
 .tf-min-h-10 { min-height: 40px; }
 .tf-rounded-full { border-radius: 50%; }
 .tf-object-cover { object-fit: cover; }
+
+.tf-editor-area.tf-dropzone-active {
+  border: 2px dashed var(--accent-color);
+  background: rgba(13, 110, 253, 0.07);
+  transition: border 0.2s, background 0.2s;
+}
+.tf-dark .tf-editor-area.tf-dropzone-active {
+  border: 2px dashed #4f8cff;
+  background: rgba(79, 140, 255, 0.10);
+}
+
+.tf-media-skeleton {
+  position: relative;
+  background: none !important;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.tf-skeleton-anim {
+  width: 100%;
+  height: 180px;
+  border-radius: 6px;
+  background: #e3e6ec;
+  position: relative;
+  overflow: hidden;
+}
+.tf-skeleton-anim::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(180,200,255,0.18) 50%, rgba(255,255,255,0) 100%);
+  animation: tf-skeleton-shimmer 1.2s infinite linear;
+}
+.tf-dark .tf-skeleton-anim {
+  background: #232a36;
+}
+.tf-dark .tf-skeleton-anim::after {
+  background: linear-gradient(90deg, rgba(40,50,70,0) 0%, rgba(80,120,180,0.18) 50%, rgba(40,50,70,0) 100%);
+}
+@keyframes tf-skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

@@ -30,6 +30,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
   const [media, setMedia] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState([]); // array of {id, type}
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -68,7 +70,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
     // Insert mention span with data attributes
     const mentionSpan = document.createElement('span');
-    mentionSpan.className = 'mention';
+    mentionSpan.className = 'tf-mention';
     mentionSpan.contentEditable = 'false';
     mentionSpan.innerText = `@${user.name}`;
     mentionSpan.setAttribute('data-id', user.id);
@@ -84,26 +86,65 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   };
 
   // Handle drag-and-drop media
-  const handleDrop = e => {
+  const handleDrop = async e => {
     e.preventDefault();
+    setIsDragOver(false);
     const files = Array.from(e.dataTransfer.files);
-    files.forEach(file => {
+    for (const file of files) {
       if (file.type.startsWith('image') || file.type.startsWith('video')) {
-        const reader = new FileReader();
-        reader.onload = ev => {
-          setMedia(m => [...m, { src: ev.target.result, type: file.type }]);
-        };
-        reader.readAsDataURL(file);
+        await handleInsertMedia(file, file.type);
       }
-    });
+    }
   };
 
-  // Render media blocks
-  const renderMedia = () =>
-    media.map((m, i) => <MediaBlock key={i} src={m.src} type={m.type} />);
+  // Prevent file open on drag over
+  const handleDragOver = e => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  const handleDragLeave = e => {
+    setIsDragOver(false);
+  };
 
-  // Prevent file open on drop
-  const handleDragOver = e => e.preventDefault();
+  // Helper to generate unique id for skeleton
+  const genId = () => '_' + Math.random().toString(36).slice(2, 10);
+
+  // Insert media from toolbar/paste/drop
+  const handleInsertMedia = async (file, type) => {
+    const id = genId();
+    setMediaLoading(m => [...m, { id, type }]);
+    let url = '';
+    if (onMediaUpload) {
+      const result = await onMediaUpload(file, type);
+      url = result?.url;
+    } else {
+      url = await fileToBase64(file);
+    }
+    setMediaLoading(m => m.filter(item => item.id !== id));
+    if (url) {
+      setMedia(m => [...m, { src: url, type }]);
+    }
+  };
+
+  // Render media blocks and skeletons with newline placeholders
+  const renderMedia = () => (
+    <>
+      {media.map((m, i) => (
+        <React.Fragment key={`media-${i}`}>
+          <MediaBlock src={m.src} type={m.type} />
+          <div><br /></div>
+        </React.Fragment>
+      ))}
+      {mediaLoading.map((item) => (
+        <React.Fragment key={item.id}>
+          <div className={`tf-media-block tf-media-skeleton tf-media-skeleton-${item.type.startsWith('image') ? 'img' : 'video'}`}>
+            <div className="tf-skeleton-anim" style={{width: '100%', height: item.type.startsWith('image') ? 180 : 180, borderRadius: 6}} />
+          </div>
+          <div><br /></div>
+        </React.Fragment>
+      ))}
+    </>
+  );
 
   // Sync content on input
   const handleInput = () => {
@@ -176,20 +217,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       if (onChange) onChange(editorRef.current?.innerHTML || '');
     }
   };
-  // Insert media from toolbar
-  const handleInsertMedia = async (file, type) => {
-    let url = '';
-    if (onMediaUpload) {
-      const result = await onMediaUpload(file, type);
-      url = result?.url;
-    } else {
-      // fallback: base64
-      url = await fileToBase64(file);
-    }
-    if (url) {
-      setMedia(m => [...m, { src: url, type }]);
-    }
-  };
 
   // Insert emoji at caret
   const handleInsertEmoji = emoji => {
@@ -211,18 +238,38 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     updateContent();
   };
 
+  // Handle paste for images
+  const handlePaste = async (e) => {
+    if (!e.clipboardData) return;
+    const items = Array.from(e.clipboardData.items);
+    let handled = false;
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handleInsertMedia(file, file.type);
+          handled = true;
+        }
+      }
+    }
+    // If not handled, allow default paste
+  };
+
   return (
     <div className={`tf-editor-container ${theme === 'dark' ? 'tf-dark' : ''}`}>
       <div
         ref={editorRef}
-        className="tf-editor-area"
+        className={`tf-editor-area${isDragOver ? ' tf-dropzone-active' : ''}`}
         contentEditable
         spellCheck={true}
         onKeyUp={handleKeyUp}
-        onKeyDown={handleKeyDown} // <-- Add this
+        onKeyDown={handleKeyDown}
         onInput={handleInput}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onPaste={handlePaste}
         suppressContentEditableWarning
         aria-label="Rich text editor"
       >
