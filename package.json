@@ -1,5 +1,5 @@
 {
-  "name": "textflux",
+  "name": "react-textflux",
   "version": "1.0.4",
   "type": "module",
   "main": "dist/index.js",
@@ -43,10 +43,6 @@
   "peerDependencies": {
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"
-  },
-  "dependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

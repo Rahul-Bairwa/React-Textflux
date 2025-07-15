@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.js'),
-      name: 'Textflux',
+      name: 'ReactTextflux',
       fileName: 'index',
       formats: ['es', 'umd']
     },
