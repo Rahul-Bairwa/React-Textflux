@@ -8,13 +8,14 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.js'),
       name: 'ReactTextflux',
-      fileName: 'index',
+      fileName: (format) => `index.${format}.js`,
       formats: ['es', 'umd']
     },
     cssCodeSplit: false,
     rollupOptions: {
       external: ['react', 'react-dom'],
       output: {
+        exports: 'named', // यह जरूरी है!
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM'
@@ -24,4 +25,4 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true
   }
-}); 
+});
