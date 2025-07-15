@@ -1,15 +1,15 @@
 {
   "name": "react-textflux",
-  "version": "1.0.8",
+  "version": "1.0.13",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
+  "main": "dist/index.umd.js",
+  "module": "dist/index.es.js",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js"
     },
-    "./dist/index.css": "./dist/index.css"
+    "./dist/react-textflux.css": "./dist/react-textflux.css"
   },
   "files": [
     "dist",
@@ -39,7 +39,7 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
-  "style": "dist/index.css",
+  "style": "dist/react-textflux.css",
   "peerDependencies": {
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0"

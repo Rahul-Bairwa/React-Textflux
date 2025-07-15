@@ -133,12 +133,23 @@ body {
 .tf-editor-area blockquote {
     border-left: 4px solid #ccc;
     padding-left: 16px;
+    font-size: 14px;
 }
 .tf-editor-area ol,
 .tf-editor-area ul {
   padding-left: 2em;
   margin-left: 0;
   box-sizing: border-box;
+  font-size: 14px;
+}
+.tf-editor-area ol {
+  list-style-type: decimal;
+}
+.tf-editor-area ul {
+  list-style-type: disc;
+}
+.tf-editor-area i{
+  font-style: italic !important;
 }
 /* Mention Styles */
 .tf-mention {

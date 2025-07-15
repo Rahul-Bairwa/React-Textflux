@@ -34,7 +34,7 @@ npm install react-textflux
 ```jsx
 // Only default import is supported:
 import Editor from 'react-textflux';
-import 'react-textflux/dist/index.css';
+import "react-textflux/dist/react-textflux.css";
 function App() {
   // Example: custom upload logic (S3, base64, etc.)
   const handleMediaUpload = async (file, type) => {
@@ -62,6 +62,7 @@ function App() {
       theme="light" // or "dark"
       mentions={mentions}
       onMediaUpload={handleMediaUpload}
+      onChange={content => console.log(content)}
     />
   );
 }
@@ -126,6 +127,36 @@ const mentions = [
 - **Emoji List:** Edit `Toolbar.jsx` emojis array
 - **CSS:** Edit `src/index.css` for full style control (all classes use `tf-` prefix)
 - **Toolbar/Theme:** Update colors in `src/index.css` for your brand
+
+---
+
+## Troubleshooting
+
+
+### [plugin:vite:import-analysis] Failed to resolve entry for package
+- Make sure your `package.json` has correct `main`, `module`, and `exports` fields.
+- Both `dist/index.es.js` and `dist/index.umd.js` must exist after build.
+
+### React Context/JSX Runtime Errors
+- Ensure your library's Vite config has:
+  ```js
+  external: [
+    'react',
+    'react-dom',
+    'react/jsx-runtime',
+    'react/jsx-dev-runtime'
+  ]
+  ```
+- And `output.globals` includes:
+  ```js
+  globals: {
+    react: 'React',
+    'react-dom': 'ReactDOM',
+    'react/jsx-runtime': 'jsxRuntime',
+    'react/jsx-dev-runtime': 'jsxDevRuntime'
+  }
+  ```
+- Consumer app and library must use the **same React version**.
 
 ---
 
