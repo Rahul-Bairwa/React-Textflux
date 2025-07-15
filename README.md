@@ -32,9 +32,11 @@ npm install react-textflux
 ## Usage
 
 ```jsx
+// Only default import is supported:
 import Editor from 'react-textflux';
 
 function App() {
+  // Example: custom upload logic (S3, base64, etc.)
   const handleMediaUpload = async (file, type) => {
     // Upload file to your server or S3, return { url, type, name }
     // Or fallback to base64:
@@ -60,11 +62,12 @@ function App() {
       theme="light" // or "dark"
       mentions={mentions}
       onMediaUpload={handleMediaUpload}
-      onChange={  content => console.log(content)}
     />
   );
 }
 ```
+
+> **Note:** Only default import is supported. Use `import Editor from 'react-textflux'`. Named import (`import { Editor } from 'react-textflux'`) is **not supported**.
 
 ---
 
