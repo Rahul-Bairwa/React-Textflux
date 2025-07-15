@@ -22,13 +22,15 @@
     "wysiwyg",
     "mention",
     "emoji",
-    "media"
+    "media",
+    "textflux",
+    "quill"
   ],
-  "author": "Your Name",
+  "author": "Rahul Bairwa",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/textflux.git"
+    "url": "https://github.com/Rahul-Bairwa/Textflux-.git"
   },
   "scripts": {
     "dev": "vite",
