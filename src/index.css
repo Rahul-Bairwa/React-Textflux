@@ -24,7 +24,7 @@
   --text-secondary: #6c757d;
   --border-color: #dee2e6;
   --border-hover: #adb5bd;
-  --accent-color: #0d6efd;
+  --accent-color: #182630;
   --accent-hover: #0b5ed7;
   --success-color: #198754;
   --danger-color: #dc3545;
@@ -60,6 +60,7 @@ body {
   background: transparent;
   overflow: visible;
   border: 1px solid var(--border-color);
+  position: relative;
 }
 
 /* Toolbar Styles */

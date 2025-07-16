@@ -36,6 +36,15 @@ npm install react-textflux
 import Editor from 'react-textflux';
 import "react-textflux/dist/react-textflux.css";
 function App() {
+  // Example: controlled usage with backend value
+  const [description, setDescription] = React.useState('');
+
+  // Simulate fetching from backend
+  React.useEffect(() => {
+    // fetch description from backend
+    setTimeout(() => setDescription('<p>Initial <b>description</b> from backend</p>'), 1000);
+  }, []);
+
   // Example: custom upload logic (S3, base64, etc.)
   const handleMediaUpload = async (file, type) => {
     // Upload file to your server or S3, return { url, type, name }
@@ -62,13 +71,14 @@ function App() {
       theme="light" // or "dark"
       mentions={mentions}
       onMediaUpload={handleMediaUpload}
-      onChange={content => console.log(content)}
+      value={description} // controlled value
+      onChange={setDescription} // updates state on any content change
     />
   );
 }
 ```
 
-> **Note:** Only default import is supported. Use `import Editor from 'react-textflux'`. Named import (`import { Editor } from 'react-textflux'`) is **not supported**.
+> **Note:** The `value` prop makes the editor controlled, just like a textarea. Pass your HTML string to `value`, and update it via `onChange`. All content changes (typing, media insert, mentions, formatting) will trigger `onChange` with the latest HTML.
 
 ---
 
@@ -119,6 +129,8 @@ const mentions = [
 | `theme`         | string   | 'light'   | 'light' or 'dark' |
 | `mentions`      | array    | []        | Array of user objects: `[{id, name, profile_pic?}]` |
 | `onMediaUpload` | function | undefined | Custom upload handler: `(file, type) => Promise<{url, type, name}>` |
+| `value`         | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
+| `onChange`      | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
 
 ---
 

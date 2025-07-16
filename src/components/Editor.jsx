@@ -14,17 +14,23 @@ const fileToBase64 = (file) => {
   });
 };
 
-function getCaretCoordinates() {
+function getCaretCoordinates(editorRef) {
   const selection = window.getSelection();
-  if (!selection.rangeCount) return { top: 0, left: 0 };
+  if (!selection.rangeCount || !editorRef?.current) return { top: 0, left: 0 };
   const range = selection.getRangeAt(0).cloneRange();
   range.collapse(false);
   const rect = range.getClientRects()[0];
-  if (rect) return { top: rect.bottom + window.scrollY, left: rect.left + window.scrollX };
+  const editorRect = editorRef.current.getBoundingClientRect();
+  if (rect) {
+    return {
+      top: rect.bottom - editorRect.top,
+      left: rect.left - editorRect.left
+    };
+  }
   return { top: 0, left: 0 };
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange }) {
+export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value }) {
   const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -49,7 +55,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (atIdx !== -1) {
       setShowMention(true);
       setMentionQuery(text.slice(atIdx + 1));
-      setMentionPos(getCaretCoordinates());
+      setMentionPos(getCaretCoordinates(editorRef));
     } else {
       setShowMention(false);
       setMentionQuery('');
@@ -83,6 +89,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     setShowMention(false);
     setMentionQuery('');
     updateContent();
+    if (onChange && editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
   };
 
   // Handle drag-and-drop media
@@ -122,7 +131,16 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
     setMediaLoading(m => m.filter(item => item.id !== id));
     if (url) {
-      setMedia(m => [...m, { src: url, type }]);
+      setMedia(m => {
+        const newMedia = [...m, { src: url, type }];
+        // onChange ko yahan call karen
+        setTimeout(() => {
+          if (onChange && editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }, 0);
+        return newMedia;
+      });
     }
   };
 
@@ -255,6 +273,14 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
     // If not handled, allow default paste
   };
+
+  // Sync value prop to editor content
+  React.useEffect(() => {
+    if (editorRef.current && typeof value === 'string' && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value;
+      updateContent();
+    }
+  }, [value]);
 
   return (
     <div className={`tf-editor-container ${theme === 'dark' ? 'tf-dark' : ''}`}>
