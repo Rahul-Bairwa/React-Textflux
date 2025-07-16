@@ -8,7 +8,7 @@
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif !important;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -117,12 +117,10 @@ body {
 .tf-editor-area {
   min-height: 200px;
   padding: 16px 16px 0px 16px;
-  
   background: var(--bg-primary);
   color: var(--text-primary);
   border: none;
   outline: none;
-  font-family: inherit;
   font-size: 14px;
   line-height: 1.6;
   resize: vertical;
@@ -230,34 +228,6 @@ body {
   max-width: 100%;
   height: auto;
   display: block;
-}
-
-/* Output Display */
-.tf-output-container {
-  margin-top: 16px;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-}
-
-.tf-output-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-
-.tf-output-content {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 12px;
-  background: var(--bg-primary);
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* Emoji Picker */
@@ -549,4 +519,15 @@ body {
 @keyframes tf-skeleton-shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+a.tf-link {
+  cursor: pointer;
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+}
+a.tf-link:hover {
+  text-decoration: underline;
 }

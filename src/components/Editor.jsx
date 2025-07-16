@@ -271,7 +271,35 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         }
       }
     }
-    // If not handled, allow default paste
+    if (handled) return;
+
+    // Handle URL paste
+    const text = e.clipboardData.getData('text/plain');
+    const urlRegex = /^https?:\/\/[^\s]+$/;
+    if (urlRegex.test(text)) {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      // Create link element
+      const a = document.createElement('a');
+      a.href = text;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.className = 'tf-link';
+      a.contentEditable = 'false';
+      a.innerText = text;
+      range.insertNode(a);
+      // Move caret after link
+      range.setStartAfter(a);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+      return;
+    }
+    // Default: allow normal paste
   };
 
   // Sync value prop to editor content
