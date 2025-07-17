@@ -323,6 +323,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   return (
     <div
+      style={{maxWidth: '800px', margin: '0 auto'}}
       className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''}${isFullscreen ? ' tf-fullscreen' : ''}`}
     // Fullscreen styles moved to tf-fullscreen class in CSS
     >
