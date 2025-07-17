@@ -38,6 +38,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [media, setMedia] = useState([]);
   const [mediaLoading, setMediaLoading] = useState([]); // array of {id, type}
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [toolbarRerender, setToolbarRerender] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -83,9 +86,17 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     mentionSpan.setAttribute('data-value', user.name);
     if (user.profile_pic) mentionSpan.setAttribute('data-profile-pic', user.profile_pic);
     range.insertNode(mentionSpan);
-    range.collapse(false);
+    // Move caret after the mention span (no space, no nbsp)
+    range.setStartAfter(mentionSpan);
+    range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
+    // Remove any accidental &nbsp; after the mention span
+    if (mentionSpan.nextSibling && mentionSpan.nextSibling.nodeType === Node.TEXT_NODE) {
+      if (mentionSpan.nextSibling.textContent.startsWith('\u00A0')) {
+        mentionSpan.nextSibling.textContent = mentionSpan.nextSibling.textContent.replace(/^\u00A0+/, '');
+      }
+    }
     setShowMention(false);
     setMentionQuery('');
     updateContent();
@@ -156,7 +167,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       {mediaLoading.map((item) => (
         <React.Fragment key={item.id}>
           <div className={`tf-media-block tf-media-skeleton tf-media-skeleton-${item.type.startsWith('image') ? 'img' : 'video'}`}>
-            <div className="tf-skeleton-anim" style={{width: '100%', height: item.type.startsWith('image') ? 180 : 180, borderRadius: 6}} />
+            <div className="tf-skeleton-anim" style={{ width: '100%', height: item.type.startsWith('image') ? 180 : 180, borderRadius: 6 }} />
           </div>
           <div><br /></div>
         </React.Fragment>
@@ -311,7 +322,38 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   }, [value]);
 
   return (
-    <div className={`tf-editor-container ${theme === 'dark' ? 'tf-dark' : ''}`}>
+    <div
+      className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''}${isFullscreen ? ' tf-fullscreen' : ''}`}
+    // Fullscreen styles moved to tf-fullscreen class in CSS
+    >
+      <button
+        type="button"
+        onClick={() => setIsFullscreen(f => !f)}
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          zIndex: 10000,
+          color: theme === 'dark' ? '#fff' : '#222',
+          border: 'none',
+          borderRadius: 4,
+          padding: '6px 12px',
+          fontSize: 20,
+          background: 'transparent',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+      >
+        {isFullscreen ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M33 6v9h9M15 6v9H6m9 27v-9H6m27 9v-9h8.9" /></svg>
+        ) : (
+          // Maximize (arrows out)
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12V4h8m8 0h8v8M4 20v8h8m16-8v8h-8" /></svg>
+        )}
+      </button>
       <div
         ref={editorRef}
         className={`tf-editor-area${isDragOver ? ' tf-dropzone-active' : ''}`}
@@ -324,17 +366,24 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onPaste={handlePaste}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => { setIsFocused(false); setToolbarRerender(v => v + 1); }}
         suppressContentEditableWarning
         aria-label="Rich text editor"
+      // Fullscreen styles moved to tf-fullscreen class in CSS
       >
         {renderMedia()}
       </div>
-      <Toolbar
-        theme={theme}
-        onInsertMedia={handleInsertMedia}
-        onInsertEmoji={handleInsertEmoji}
-        onClearFormatting={handleClearFormatting}
-      />
+      <div className={isFullscreen ? 'tf-toolbar-fullscreen' : ''}>
+        <Toolbar
+          key={toolbarRerender}
+          theme={theme}
+          onInsertMedia={handleInsertMedia}
+          onInsertEmoji={handleInsertEmoji}
+          onClearFormatting={handleClearFormatting}
+          isFocused={isFocused}
+        />
+      </div>
       {showMention && (
         <MentionList
           suggestions={mentionSuggestions}

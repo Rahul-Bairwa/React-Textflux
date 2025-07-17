@@ -17,6 +17,8 @@
   ],
   "keywords": [
     "react",
+    "react-textflux",
+    "quill",
     "rich-text-editor",
     "text-editor",
     "wysiwyg",
@@ -24,7 +26,7 @@
     "emoji",
     "media",
     "textflux",
-    "quill"
+    "tinymce"
   ],
   "author": "Rahul Bairwa",
   "license": "MIT",
