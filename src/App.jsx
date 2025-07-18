@@ -18,6 +18,7 @@ export default function App() {
         onChange={setContent}
         value={content} 
         placeholder="Write something..."
+        mediaFullscreen={true}
       />
     </div>
   );

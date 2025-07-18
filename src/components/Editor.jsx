@@ -30,7 +30,7 @@ function getCaretCoordinates(editorRef) {
   return { top: 0, left: 0 };
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value }) {
+export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, mediaFullscreen = false }) {
   const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -160,7 +160,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     <>
       {media.map((m, i) => (
         <React.Fragment key={`media-${i}`}>
-          <MediaBlock src={m.src} type={m.type} />
+          <MediaBlock src={m.src} type={m.type} mediaFullscreen={mediaFullscreen} />
           <div><br /></div>
         </React.Fragment>
       ))}

@@ -7,6 +7,7 @@
 - **Unified media handling:** Paste, drag-and-drop, and toolbar all use the same upload logic
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
 - **CSS isolation:** All classes prefixed with `tf-` (no conflicts)
+- **Media fullscreen control:** You can now control whether images/videos are clickable for fullscreen preview using the `mediaFullscreen` prop on the Editor component.
 
 ---
 
@@ -18,6 +19,7 @@ A minimal, modular, and customizable React rich text editor component with:
 - Dark/light theme support
 - Custom upload logic via callback
 - **No CSS framework dependency (pure CSS, all classes prefixed with `tf-` for isolation)**
+- **Optional fullscreen media preview**
 
 ---
 
@@ -73,6 +75,7 @@ function App() {
       onMediaUpload={handleMediaUpload}
       value={description} // controlled value
       onChange={setDescription} // updates state on any content change
+      mediaFullscreen={true} // <-- Add this line to enable fullscreen media preview
     />
   );
 }
@@ -120,17 +123,19 @@ const mentions = [
 - **Dark Theme Polish:** Selected toolbar/mention is deep blue for better contrast
 - **Emoji/Mention Scrollbar:** Thin, theme-aware, and modern
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
+- **Optional Media Fullscreen:** Enable fullscreen preview for images/videos by setting `mediaFullscreen={true}` on the Editor. If not set, media is not clickable by default.
 
 ---
 
 ## Props
-| Prop            | Type     | Default   | Description |
-|-----------------|----------|-----------|-------------|
-| `theme`         | string   | 'light'   | 'light' or 'dark' |
-| `mentions`      | array    | []        | Array of user objects: `[{id, name, profile_pic?}]` |
-| `onMediaUpload` | function | undefined | Custom upload handler: `(file, type) => Promise<{url, type, name}>` |
-| `value`         | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
-| `onChange`      | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
+| Prop                | Type     | Default   | Description |
+|---------------------|----------|-----------|-------------|
+| `theme`             | string   | 'light'   | 'light' or 'dark' |
+| `mentions`          | array    | []        | Array of user objects: `[{id, name, profile_pic?}]` |
+| `onMediaUpload`     | function | undefined | Custom upload handler: `(file, type) => Promise<{url, type, name}>` |
+| `value`             | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
+| `onChange`          | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
+| `mediaFullscreen`   | boolean  | false     | If true, images/videos are clickable and open in fullscreen overlay. If false or not set, media is not clickable. |
 
 ---
 
@@ -139,6 +144,7 @@ const mentions = [
 - **Emoji List:** Edit `Toolbar.jsx` emojis array
 - **CSS:** Edit `src/index.css` for full style control (all classes use `tf-` prefix)
 - **Toolbar/Theme:** Update colors in `src/index.css` for your brand
+- **Media Fullscreen:** Use the `mediaFullscreen` prop to control whether media is clickable for fullscreen preview.
 
 ---
 
