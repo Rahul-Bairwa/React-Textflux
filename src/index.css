@@ -220,13 +220,34 @@ body {
   max-width: 100%;
   border-radius: 6px;
   overflow: hidden;
+  /* Center the media block */
+  margin: 0 auto;
 }
 
 .tf-media-block img,
 .tf-media-block video {
-  max-width: 100%;
+  max-width: 60%; /* Reduced from 100% to 60% */
   height: auto;
   display: block;
+  margin: 0 auto; /* Center the media */
+  border-radius: 6px;
+}
+
+/* Style for existing media that gets processed for fullscreen */
+.tf-editor-area img.tf-processed-media,
+.tf-editor-area video.tf-processed-media {
+  max-width: 60%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.tf-editor-area img.tf-processed-media:hover,
+.tf-editor-area video.tf-processed-media:hover {
+  opacity: 0.8;
 }
 
 /* Emoji Picker */
@@ -389,6 +410,32 @@ body {
     width: 28px;
     height: 28px;
   }
+  
+  /* Smaller media on mobile */
+  .tf-media-block img,
+  .tf-media-block video {
+    max-width: 80%;
+  }
+  
+  /* Processed media on mobile */
+  .tf-editor-area img.tf-processed-media,
+  .tf-editor-area video.tf-processed-media {
+    max-width: 80%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Even smaller media on very small screens */
+  .tf-media-block img,
+  .tf-media-block video {
+    max-width: 90%;
+  }
+  
+  /* Processed media on very small screens */
+  .tf-editor-area img.tf-processed-media,
+  .tf-editor-area video.tf-processed-media {
+    max-width: 90%;
+  }
 }
 
 /* Utility Classes */
@@ -435,9 +482,6 @@ body {
 .tf-block { display: block; }
 .tf-inline-block { display: inline-block; }
 
-.tf-w-full { width: 100%; }
-.tf-h-full { height: 100%; }
-.tf-min-h-screen { min-height: 100vh; }
 
 .tf-overflow-hidden { overflow: hidden; }
 .tf-overflow-auto { overflow: auto; }
@@ -529,57 +573,4 @@ a.tf-link {
 }
 a.tf-link:hover {
   text-decoration: underline;
-}
-
-.tf-fullscreen {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  z-index: 9999 !important;
-  background: #222 !important; /* or #fff for light, can be overridden by theme */
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: flex-start !important;
-  align-items: stretch !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-.tf-fullscreen .tf-editor-area {
-  flex-grow: 1;
-  min-height: 0;
-  overflow-y: auto;
-  font-size: 18px;
-  padding: 24px;
-  outline: none;
-  background: transparent;
-  color: #fff;
-  border: none;
-  font-size: 14px;
-  min-height: 200px;
-  padding: 16px 16px 0px 16px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-.tf-dark.tf-fullscreen {
-  background: #222 !important;
-}
-.tf-fullscreen:not(.tf-dark) {
-  background: #fff !important;
-}
-.tf-toolbar-fullscreen {
-  width: 100%;
-  position: relative;
-  z-index: 10001;
-  background: inherit;
-}
-
-html, body {
-  height: 100%;
-}
-
-.tf-fullscreen {
-  height: 100dvh !important;
-  /* बाकी styles same */
 }

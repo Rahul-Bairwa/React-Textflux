@@ -30,7 +30,23 @@ function getCaretCoordinates(editorRef) {
   return { top: 0, left: 0 };
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value }) {
+function moveCursorToEnd(editorRef) {
+  if (!editorRef?.current) return;
+  
+  const selection = window.getSelection();
+  const range = document.createRange();
+  
+  // Place cursor at the end of the editor
+  const editor = editorRef.current;
+  range.selectNodeContents(editor);
+  range.collapse(false); // collapse to end
+  
+  selection.removeAllRanges();
+  selection.addRange(range);
+  editor.focus();
+}
+
+export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, mediaFullscreen = false }) {
   const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -40,7 +56,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [toolbarRerender, setToolbarRerender] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -103,6 +118,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (onChange && editorRef.current) {
       onChange(editorRef.current.innerHTML);
     }
+    // Move cursor after mention insertion
+    setTimeout(() => {
+      moveCursorToEnd(editorRef);
+    }, 0);
   };
 
   // Handle drag-and-drop media
@@ -131,27 +150,39 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   // Insert media from toolbar/paste/drop
   const handleInsertMedia = async (file, type) => {
-    const id = genId();
-    setMediaLoading(m => [...m, { id, type }]);
-    let url = '';
-    if (onMediaUpload) {
-      const result = await onMediaUpload(file, type);
-      url = result?.url;
-    } else {
-      url = await fileToBase64(file);
-    }
-    setMediaLoading(m => m.filter(item => item.id !== id));
-    if (url) {
-      setMedia(m => {
-        const newMedia = [...m, { src: url, type }];
-        // onChange ko yahan call karen
-        setTimeout(() => {
-          if (onChange && editorRef.current) {
-            onChange(editorRef.current.innerHTML);
-          }
-        }, 0);
-        return newMedia;
-      });
+    try {
+      if (!file) {
+        console.error('No file provided to handleInsertMedia');
+        return;
+      }
+      console.log('handleInsertMedia called with:', { file, type });
+      const id = genId();
+      setMediaLoading(m => [...m, { id, type }]);
+      let url = '';
+      if (onMediaUpload) {
+        const result = await onMediaUpload(file, type);
+        url = result?.url;
+      } else {
+        url = await fileToBase64(file);
+      }
+      setMediaLoading(m => m.filter(item => item.id !== id));
+      if (url) {
+        setMedia(m => {
+          const newMedia = [...m, { src: url, type }];
+          // Move cursor after media insertion
+          setTimeout(() => {
+            if (onChange && editorRef.current) {
+              onChange(editorRef.current.innerHTML);
+            }
+            // Move cursor to end of editor
+            moveCursorToEnd(editorRef);
+          }, 0);
+          return newMedia;
+        });
+      }
+    } catch (error) {
+      console.error('Error in handleInsertMedia:', error);
+      setMediaLoading(m => m.filter(item => item.type !== type));
     }
   };
 
@@ -160,7 +191,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     <>
       {media.map((m, i) => (
         <React.Fragment key={`media-${i}`}>
-          <MediaBlock src={m.src} type={m.type} />
+          <MediaBlock src={m.src} type={m.type} mediaFullscreen={mediaFullscreen} />
           <div><br /></div>
         </React.Fragment>
       ))}
@@ -257,6 +288,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     sel.removeAllRanges();
     sel.addRange(range);
     updateContent();
+    if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
 
   // Clear formatting
@@ -318,43 +350,140 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (editorRef.current && typeof value === 'string' && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value;
       updateContent();
+      // Process existing media for fullscreen functionality
+      if (mediaFullscreen) {
+        processExistingMedia();
+      }
     }
-  }, [value]);
+  }, [value, mediaFullscreen]);
+
+  // Process existing media when component mounts or mediaFullscreen changes
+  React.useEffect(() => {
+    if (mediaFullscreen && editorRef.current) {
+      // Small delay to ensure content is loaded
+      setTimeout(() => {
+        processExistingMedia();
+      }, 100);
+    }
+  }, [mediaFullscreen]);
+
+  // Process existing media in editor content to add fullscreen functionality
+  const processExistingMedia = () => {
+    if (!editorRef.current || !mediaFullscreen) return;
+    
+    const images = editorRef.current.querySelectorAll('img');
+    const videos = editorRef.current.querySelectorAll('video');
+    
+    // Process images
+    images.forEach(img => {
+      if (!img.classList.contains('tf-processed-media')) {
+        img.classList.add('tf-processed-media');
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showMediaFullscreen(img.src, 'image');
+        });
+      }
+    });
+    
+    // Process videos
+    videos.forEach(video => {
+      if (!video.classList.contains('tf-processed-media')) {
+        video.classList.add('tf-processed-media');
+        video.style.cursor = 'pointer';
+        video.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showMediaFullscreen(video.src, 'video');
+        });
+      }
+    });
+  };
+
+  // Show media in fullscreen overlay
+  const showMediaFullscreen = (src, type) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'tf-media-fullscreen-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.85);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '×';
+    closeButton.style.cssText = `
+      position: absolute;
+      top: 24px;
+      right: 32px;
+      z-index: 100000;
+      background: rgba(30,30,30,0.7);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 28px;
+      padding: 2px 16px;
+      cursor: pointer;
+    `;
+    closeButton.setAttribute('aria-label', 'Close preview');
+    
+    const closeOverlay = () => {
+      document.body.removeChild(overlay);
+    };
+    
+    closeButton.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeOverlay();
+      }
+    });
+    
+    let mediaElement;
+    if (type === 'image') {
+      mediaElement = document.createElement('img');
+      mediaElement.src = src;
+      mediaElement.alt = 'media preview';
+      mediaElement.style.cssText = `
+        max-width: 90vw;
+        max-height: 90vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+      `;
+    } else if (type === 'video') {
+      mediaElement = document.createElement('video');
+      mediaElement.src = src;
+      mediaElement.controls = true;
+      mediaElement.autoPlay = true;
+      mediaElement.style.cssText = `
+        max-width: 90vw;
+        max-height: 90vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+        background: #000;
+      `;
+    }
+    
+    if (mediaElement) {
+      mediaElement.addEventListener('click', (e) => e.stopPropagation());
+      overlay.appendChild(mediaElement);
+    }
+    
+    overlay.appendChild(closeButton);
+    document.body.appendChild(overlay);
+  };
 
   return (
     <div
-      style={{maxWidth: '800px', margin: '0 auto'}}
-      className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''}${isFullscreen ? ' tf-fullscreen' : ''}`}
-    // Fullscreen styles moved to tf-fullscreen class in CSS
+      className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''}`}
     >
-      <button
-        type="button"
-        onClick={() => setIsFullscreen(f => !f)}
-        style={{
-          position: 'absolute',
-          top: 12,
-          right: 12,
-          zIndex: 10000,
-          color: theme === 'dark' ? '#fff' : '#222',
-          border: 'none',
-          borderRadius: 4,
-          padding: '6px 12px',
-          fontSize: 20,
-          background: 'transparent',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-      >
-        {isFullscreen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M33 6v9h9M15 6v9H6m9 27v-9H6m27 9v-9h8.9" /></svg>
-        ) : (
-          // Maximize (arrows out)
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12V4h8m8 0h8v8M4 20v8h8m16-8v8h-8" /></svg>
-        )}
-      </button>
       <div
         ref={editorRef}
         className={`tf-editor-area${isDragOver ? ' tf-dropzone-active' : ''}`}
@@ -368,23 +497,27 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onDragLeave={handleDragLeave}
         onPaste={handlePaste}
         onFocus={() => setIsFocused(true)}
-        onBlur={() => { setIsFocused(false); setToolbarRerender(v => v + 1); }}
+        onBlur={(e) => { 
+          // Don't blur if clicking on toolbar buttons
+          if (e.relatedTarget && e.relatedTarget.closest('.tf-toolbar')) {
+            return;
+          }
+          setIsFocused(false); 
+          setToolbarRerender(v => v + 1); 
+        }}
         suppressContentEditableWarning
         aria-label="Rich text editor"
-      // Fullscreen styles moved to tf-fullscreen class in CSS
       >
         {renderMedia()}
       </div>
-      <div className={isFullscreen ? 'tf-toolbar-fullscreen' : ''}>
-        <Toolbar
-          key={toolbarRerender}
-          theme={theme}
-          onInsertMedia={handleInsertMedia}
-          onInsertEmoji={handleInsertEmoji}
-          onClearFormatting={handleClearFormatting}
-          isFocused={isFocused}
-        />
-      </div>
+      <Toolbar
+        key={toolbarRerender}
+        theme={theme}
+        onInsertMedia={handleInsertMedia}
+        onInsertEmoji={handleInsertEmoji}
+        onClearFormatting={handleClearFormatting}
+        isFocused={isFocused}
+      />
       {showMention && (
         <MentionList
           suggestions={mentionSuggestions}

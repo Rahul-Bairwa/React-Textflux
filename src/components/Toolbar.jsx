@@ -81,8 +81,18 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
   }, [showEmoji]);
 
   const handleFile = (type) => {
-    if (type === 'image') imgInput.current.click();
-    else if (type === 'video') vidInput.current.click();
+    try {
+      // Small delay to ensure the click event is processed properly
+      setTimeout(() => {
+        if (type === 'image' && imgInput.current) {
+          imgInput.current.click();
+        } else if (type === 'video' && vidInput.current) {
+          vidInput.current.click();
+        }
+      }, 10);
+    } catch (error) {
+      console.error('Error opening file dialog:', error);
+    }
   };
 
   return (
@@ -130,20 +140,52 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
         );
       })}
       <Tooltip label={tooltips.image.label} shortcut={tooltips.image.shortcut} theme={theme}>
-        <button title="Insert Image" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('image');}}>{icons.image}</button>
+        <button title="Insert Image" className="tf-toolbar-btn" tabIndex={0} onClick={e => {e.preventDefault();e.stopPropagation();handleFile('image');}}>{icons.image}</button>
       </Tooltip>
-      <input type="file" accept="image/*" ref={imgInput} className="tf-file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'image'); e.target.value='';}} />
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={imgInput} 
+        className="tf-file-input" 
+        onChange={e => {
+          try {
+            if (e.target.files && e.target.files[0]) {
+              onInsertMedia(e.target.files[0], e.target.files[0].type);
+            }
+            e.target.value = '';
+          } catch (error) {
+            console.error('Error handling image file:', error);
+            e.target.value = '';
+          }
+        }} 
+      />
       <Tooltip label={tooltips.video.label} shortcut={tooltips.video.shortcut} theme={theme}>
-        <button title="Insert Video" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();handleFile('video');}}>{icons.video}</button>
+        <button title="Insert Video" className="tf-toolbar-btn" tabIndex={0} onClick={e => {e.preventDefault();e.stopPropagation();handleFile('video');}}>{icons.video}</button>
       </Tooltip>
-      <input type="file" accept="video/*" ref={vidInput} className="tf-file-input" onChange={e => {if(e.target.files[0]) onInsertMedia(e.target.files[0],'video'); e.target.value='';}} />
+      <input 
+        type="file" 
+        accept="video/*" 
+        ref={vidInput} 
+        className="tf-file-input" 
+        onChange={e => {
+          try {
+            if (e.target.files && e.target.files[0]) {
+              onInsertMedia(e.target.files[0], e.target.files[0].type);
+            }
+            e.target.value = '';
+          } catch (error) {
+            console.error('Error handling video file:', error);
+            e.target.value = '';
+          }
+        }} 
+      />
       <div className="tf-relative">
         <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
           <button
             ref={emojiBtnRef}
             title="Emoji"
             className="tf-toolbar-btn"
-            onMouseDown={e => {e.preventDefault();setShowEmoji(v=>!v);}}
+            onClick={e => {e.preventDefault();e.stopPropagation();setShowEmoji(v=>!v);}}
           >
             {icons.emoji}
           </button>
@@ -157,7 +199,7 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
         )}
       </div>
       <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
-        <button title="Clear Formatting" className="tf-toolbar-btn" onMouseDown={e => {e.preventDefault();onClearFormatting();}}>{icons.clear}</button>
+        <button title="Clear Formatting" className="tf-toolbar-btn" onClick={e => {e.preventDefault();e.stopPropagation();onClearFormatting();}}>{icons.clear}</button>
       </Tooltip>
     </div>
   );

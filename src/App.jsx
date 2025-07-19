@@ -10,7 +10,7 @@ export default function App() {
   const [content, setContent] = React.useState('');
   console.log("content", content);
   return (
-    <div className="tf-min-h-screen">
+    <div>
       <h1 className="tf-text-center tf-mt-8 tf-mb-4">Minimal Rich Text Editor</h1>
       <Editor
         className="my-mention-box"
@@ -18,6 +18,7 @@ export default function App() {
         onChange={setContent}
         value={content} 
         placeholder="Write something..."
+        mediaFullscreen={true}
       />
     </div>
   );
