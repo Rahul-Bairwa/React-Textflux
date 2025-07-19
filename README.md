@@ -7,6 +7,8 @@
 - **Unified media handling:** Paste, drag-and-drop, and toolbar all use the same upload logic
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
 - **CSS isolation:** All classes prefixed with `tf-` (no conflicts)
+- **Fullscreen editor:** Toggle fullscreen mode with the button in the top-right corner (maximize/restore icon)
+- **Media preview:** Click any image or video in the editor to view it fullscreen in an overlay
 
 ---
 
@@ -14,7 +16,7 @@ A minimal, modular, and customizable React rich text editor component with:
 - Basic formatting (bold, italic, underline, strikethrough, blockquote, lists)
 - @mention with profile pic/initials
 - Emoji picker (hundreds of emojis)
-- Media rendering (image/video)
+- Media rendering (image/video) with fullscreen preview
 - Dark/light theme support
 - Custom upload logic via callback
 - **No CSS framework dependency (pure CSS, all classes prefixed with `tf-` for isolation)**
@@ -82,6 +84,15 @@ function App() {
 
 ---
 
+## Fullscreen Editor & Media Preview
+
+- **Editor Fullscreen:** Click the maximize/restore icon in the top-right corner of the editor to toggle fullscreen mode. The editor will expand to fill the viewport for distraction-free writing.
+- **Media Fullscreen Preview:** Click any image or video in the editor to open a fullscreen overlay preview. Click the close (×) button or outside the media to exit preview.
+
+> **Tip:** You can customize the fullscreen icons or overlay style by editing the relevant SVG or CSS in the source.
+
+---
+
 ## Mentions (@mention)
 
 You can pass your own mention data as a prop:
@@ -111,7 +122,7 @@ const mentions = [
 - **Formatting:** Bold, Italic, Underline, Strikethrough, Blockquote, Lists
 - **@Mention:** User list with profile pic/initials, keyboard navigation, auto-scroll
 - **Emoji Picker:** 200+ emojis, fast search, **outside click to close**
-- **Media:** Render images/videos (upload logic is up to you)
+- **Media:** Render images/videos (upload logic is up to you), **click to fullscreen preview**
 - **Media Skeleton:** Animated skeleton loader while uploading/inserting
 - **Theme:** Light & dark mode (prop)
 - **Keyboard Shortcuts:** Tooltips show shortcuts (e.g. Ctrl+B)
@@ -120,6 +131,8 @@ const mentions = [
 - **Dark Theme Polish:** Selected toolbar/mention is deep blue for better contrast
 - **Emoji/Mention Scrollbar:** Thin, theme-aware, and modern
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
+- **Fullscreen Editor:** Maximize/restore icon in top-right for distraction-free writing
+- **Media Fullscreen Preview:** Click any image/video to view fullscreen overlay
 
 ---
 
@@ -139,11 +152,11 @@ const mentions = [
 - **Emoji List:** Edit `Toolbar.jsx` emojis array
 - **CSS:** Edit `src/index.css` for full style control (all classes use `tf-` prefix)
 - **Toolbar/Theme:** Update colors in `src/index.css` for your brand
+- **Fullscreen/Media Overlay:** Customize overlay and icons in `MediaBlock.jsx` and `Editor.jsx`
 
 ---
 
 ## Troubleshooting
-
 
 ### [plugin:vite:import-analysis] Failed to resolve entry for package
 - Make sure your `package.json` has correct `main`, `module`, and `exports` fields.
