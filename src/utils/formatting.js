@@ -26,4 +26,15 @@ export function isFormatActive(command, value = null) {
     return document.queryCommandState(command);
   }
   return document.queryCommandState(command);
+}
+
+export function isCodeBlockActive() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return false;
+  let node = selection.anchorNode;
+  while (node) {
+    if (node.nodeType === 1 && node.classList && node.classList.contains('tf-code-block')) return true;
+    node = node.parentNode;
+  }
+  return false;
 } 

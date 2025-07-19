@@ -574,3 +574,44 @@ a.tf-link {
 a.tf-link:hover {
   text-decoration: underline;
 }
+
+/* Code Block Styles */
+.tf-code-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0 0 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace !important;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.tf-code-block:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
+}
+
+.tf-dark .tf-code-block {
+  background: #1a1a1a;
+  border-color: #333;
+  color: #e0e0e0;
+}
+
+.tf-dark .tf-code-block:focus {
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.1);
+}
+
+/* Code block placeholder */
+.tf-code-block:empty::before {
+  content: '// Enter your code here...';
+  color: var(--text-secondary);
+  font-style: italic;
+}

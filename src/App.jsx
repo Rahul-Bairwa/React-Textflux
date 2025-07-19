@@ -13,6 +13,7 @@ export default function App() {
     <div>
       <h1 className="tf-text-center tf-mt-8 tf-mb-4">Minimal Rich Text Editor</h1>
       <Editor
+        theme='dark'
         className="my-mention-box"
         mentions={mentions}
         onChange={setContent}

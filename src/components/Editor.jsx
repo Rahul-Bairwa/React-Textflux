@@ -3,6 +3,7 @@ import Toolbar from './Toolbar';
 import MentionList from './MentionList';
 import MediaBlock from './MediaBlock';
 import useEditor from '../hooks/useEditor';
+import { isCodeBlockActive } from '../utils/formatting';
 
 // Utility function to convert file to base64
 const fileToBase64 = (file) => {
@@ -32,15 +33,15 @@ function getCaretCoordinates(editorRef) {
 
 function moveCursorToEnd(editorRef) {
   if (!editorRef?.current) return;
-  
+
   const selection = window.getSelection();
   const range = document.createRange();
-  
+
   // Place cursor at the end of the editor
   const editor = editorRef.current;
   range.selectNodeContents(editor);
   range.collapse(false); // collapse to end
-  
+
   selection.removeAllRanges();
   selection.addRange(range);
   editor.focus();
@@ -56,6 +57,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [toolbarRerender, setToolbarRerender] = useState(0);
+  // Add a state for code block active
+  const [isCodeBlockActiveState, setIsCodeBlockActiveState] = useState(false);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -276,6 +279,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
     }
+    // Code Block: Ctrl+K
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      handleInsertCodeBlock();
+    }
   };
 
   // Insert emoji at caret
@@ -299,7 +307,52 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     updateContent();
   };
 
-  // Handle paste for images
+  // Insert code block
+  const handleInsertCodeBlock = () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+
+    // Create code block element
+    const codeBlock = document.createElement('pre');
+    codeBlock.className = 'tf-code-block';
+    codeBlock.contentEditable = 'true';
+    codeBlock.style.cssText = `
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 8px 0;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-x: auto;
+      color: var(--text-primary);
+    `;
+
+    // Add placeholder text
+    const placeholder = document.createTextNode('// Enter your code here...');
+    codeBlock.appendChild(placeholder);
+
+    // Insert the code block
+    range.insertNode(codeBlock);
+
+    // Move cursor inside the code block
+    range.selectNodeContents(codeBlock);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    // Focus on the code block
+    codeBlock.focus();
+
+    updateContent();
+    if (onChange) onChange(editorRef.current?.innerHTML || '');
+  };
+
+  // Handle paste for images and code
   const handlePaste = async (e) => {
     if (!e.clipboardData) return;
     const items = Array.from(e.clipboardData.items);
@@ -342,6 +395,43 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       if (onChange) onChange(editorRef.current?.innerHTML || '');
       return;
     }
+
+    // Handle code paste - detect if it looks like code
+    if (text && (text.includes('function') || text.includes('const ') || text.includes('let ') || 
+        text.includes('var ') || text.includes('if (') || text.includes('for (') || 
+        text.includes('class ') || text.includes('import ') || text.includes('export ') ||
+        text.includes('{') || text.includes('}') || text.includes(';') || 
+        text.includes('console.') || text.includes('return ') || text.includes('=>'))) {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      
+      // Create code block
+      const codeBlock = document.createElement('pre');
+      codeBlock.className = 'tf-code-block';
+      codeBlock.contentEditable = 'true';
+      codeBlock.textContent = text;
+      
+      // Insert code block
+      range.insertNode(codeBlock);
+      
+      // Insert a new line after code block
+      const newLine = document.createElement('div');
+      newLine.appendChild(document.createElement('br'));
+      codeBlock.parentNode.insertBefore(newLine, codeBlock.nextSibling);
+      
+      // Move cursor to the new line
+      range.setStart(newLine, 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+      return;
+    }
+
     // Default: allow normal paste
   };
 
@@ -370,10 +460,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Process existing media in editor content to add fullscreen functionality
   const processExistingMedia = () => {
     if (!editorRef.current || !mediaFullscreen) return;
-    
+
     const images = editorRef.current.querySelectorAll('img');
     const videos = editorRef.current.querySelectorAll('video');
-    
+
     // Process images
     images.forEach(img => {
       if (!img.classList.contains('tf-processed-media')) {
@@ -386,7 +476,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         });
       }
     });
-    
+
     // Process videos
     videos.forEach(video => {
       if (!video.classList.contains('tf-processed-media')) {
@@ -417,7 +507,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       align-items: center;
       justify-content: center;
     `;
-    
+
     const closeButton = document.createElement('button');
     closeButton.innerHTML = '×';
     closeButton.style.cssText = `
@@ -434,18 +524,18 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       cursor: pointer;
     `;
     closeButton.setAttribute('aria-label', 'Close preview');
-    
+
     const closeOverlay = () => {
       document.body.removeChild(overlay);
     };
-    
+
     closeButton.addEventListener('click', closeOverlay);
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         closeOverlay();
       }
     });
-    
+
     let mediaElement;
     if (type === 'image') {
       mediaElement = document.createElement('img');
@@ -470,15 +560,25 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         background: #000;
       `;
     }
-    
+
     if (mediaElement) {
       mediaElement.addEventListener('click', (e) => e.stopPropagation());
       overlay.appendChild(mediaElement);
     }
-    
+
     overlay.appendChild(closeButton);
     document.body.appendChild(overlay);
   };
+
+  // Listen for selection change to update code block active state
+  React.useEffect(() => {
+    const handleSelectionChange = () => {
+      setIsFocused(document.activeElement === editorRef.current);
+      setIsCodeBlockActiveState(isCodeBlockActive());
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, [editorRef]);
 
   return (
     <div
@@ -497,13 +597,13 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onDragLeave={handleDragLeave}
         onPaste={handlePaste}
         onFocus={() => setIsFocused(true)}
-        onBlur={(e) => { 
+        onBlur={(e) => {
           // Don't blur if clicking on toolbar buttons
           if (e.relatedTarget && e.relatedTarget.closest('.tf-toolbar')) {
             return;
           }
-          setIsFocused(false); 
-          setToolbarRerender(v => v + 1); 
+          setIsFocused(false);
+          setToolbarRerender(v => v + 1);
         }}
         suppressContentEditableWarning
         aria-label="Rich text editor"
@@ -516,7 +616,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onInsertMedia={handleInsertMedia}
         onInsertEmoji={handleInsertEmoji}
         onClearFormatting={handleClearFormatting}
+        onInsertCodeBlock={handleInsertCodeBlock}
         isFocused={isFocused}
+        isCodeBlockActive={isCodeBlockActiveState}
       />
       {showMention && (
         <MentionList

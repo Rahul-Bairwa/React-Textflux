@@ -12,6 +12,8 @@
 - **Improved button reliability:** Fixed image/video insert buttons that sometimes didn't work
 - **Enhanced error handling:** Better error handling for file operations and media uploads
 - **Focus management:** Improved focus handling between editor and toolbar
+- **Existing media support:** All existing images/videos in editor content are automatically clickable for fullscreen preview
+- **Code block support:** Insert code blocks via toolbar or Ctrl+K, and paste code from IDE for auto-formatting
 
 ---
 
@@ -20,11 +22,24 @@ A minimal, modular, and customizable React rich text editor component with:
 - @mention with profile pic/initials
 - Emoji picker (hundreds of emojis)
 - Media rendering (image/video) with fullscreen preview
+- **Code block support with text wrapping and monospace font**
 - Dark/light theme support
 - Custom upload logic via callback
 - **No CSS framework dependency (pure CSS, all classes prefixed with `tf-` for isolation)**
 - **Optional fullscreen media preview**
 - **Smart cursor positioning for seamless writing experience**
+- **Existing media support for fullscreen preview**
+
+---
+
+## Code Block Support
+
+- **Insert code blocks** using the toolbar button (</>) or keyboard shortcut `Ctrl+K` (Cmd+K on Mac)
+- **Paste code from any IDE** and it will auto-format as a code block
+- **Text wrapping** and horizontal scroll for long lines
+- **Monospace font** for code clarity
+- **Continue typing after code**: After pasting/inserting code, a new line is added so you can keep writing
+- **Highlighting**: Toolbar button is highlighted when your cursor is inside a code block
 
 ---
 
@@ -90,12 +105,12 @@ function App() {
 
 ---
 
-## Fullscreen Editor & Media Preview
+## Media Fullscreen Preview
 
-- **Editor Fullscreen:** Click the maximize/restore icon in the top-right corner of the editor to toggle fullscreen mode. The editor will expand to fill the viewport for distraction-free writing.
 - **Media Fullscreen Preview:** Click any image or video in the editor to open a fullscreen overlay preview. Click the close (×) button or outside the media to exit preview.
+- **Works with all media:** Both newly inserted and existing media (from database, etc.) are clickable for fullscreen preview when `mediaFullscreen={true}` is enabled.
 
-> **Tip:** You can customize the fullscreen icons or overlay style by editing the relevant SVG or CSS in the source.
+> **Tip:** You can customize the fullscreen overlay style by editing the relevant CSS in the source.
 
 ---
 
@@ -107,50 +122,7 @@ The editor now automatically positions the cursor in the most logical place afte
 - **Mention Insertion:** After selecting a mention from the dropdown, cursor moves to the end
 - **Emoji Insertion:** After inserting an emoji, cursor moves to the end
 - **Seamless Writing:** No more manual cursor positioning - just keep typing naturally
-
----
-
-## Mentions (@mention)
-
-You can pass your own mention data as a prop:
-
-```jsx
-const mentions = [
-  { id: 1, name: 'John Doe', profile_pic: 'https://example.com/john.jpg' },
-  { id: 2, name: 'Jane Smith', profile_pic: 'https://example.com/jane.jpg' },
-  { id: 3, name: 'Bob Johnson' } // without profile_pic
-];
-
-<Editor mentions={mentions} />
-```
-
-- **id**: unique user id (number or string)
-- **name**: user's display name (used for search and display)
-- **profile_pic**: (optional) image URL for avatar. If missing or image fails, initials will be shown automatically.
-
-**How it works:**
-- When you type `@`, a dropdown appears with user suggestions.
-- You can navigate with up/down keys and select with Enter. **Dropdown auto-scrolls to keep selection visible.**
-- The mention inserted in the editor will include the user's name and id (and profile_pic if present).
-- **Cursor automatically moves to the end after mention insertion.**
-
----
-
-## Media Handling
-
-The editor supports multiple ways to insert media:
-
-- **Toolbar Buttons:** Click the image or video button in the toolbar
-- **Drag & Drop:** Drag files directly onto the editor
-- **Paste:** Paste images from clipboard (Ctrl+V)
-- **File Dialog:** Use the toolbar buttons to open file selection dialog
-
-**Features:**
-- **Skeleton Loading:** Shows animated skeleton while uploading
-- **Error Handling:** Robust error handling for failed uploads
-- **Multiple Formats:** Supports all common image and video formats
-- **Fullscreen Preview:** Click media to view in fullscreen overlay (when enabled)
-- **Automatic Cursor Positioning:** Cursor moves to end after insertion
+- **Code Block Paste:** After pasting code, a new line is added so you can keep typing outside the code block
 
 ---
 
@@ -160,29 +132,19 @@ The editor supports multiple ways to insert media:
 - **Emoji Picker:** 200+ emojis, fast search, **outside click to close**
 - **Media:** Render images/videos (upload logic is up to you), **click to fullscreen preview**
 - **Media Skeleton:** Animated skeleton loader while uploading/inserting
+- **Code Block:** Insert code blocks via toolbar or Ctrl+K, auto-format on paste, text wrapping, monospace font
 - **Theme:** Light & dark mode (prop)
-- **Keyboard Shortcuts:** Tooltips show shortcuts (e.g. Ctrl+B)
+- **Keyboard Shortcuts:** Tooltips show shortcuts (e.g. Ctrl+B, Ctrl+K)
 - **Custom CSS:** No Tailwind/Bootstrap required
 - **CSS Isolation:** All classes prefixed with `tf-` (no conflicts with other frameworks)
 - **Dark Theme Polish:** Selected toolbar/mention is deep blue for better contrast
 - **Emoji/Mention Scrollbar:** Thin, theme-aware, and modern
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
 - **Optional Media Fullscreen:** Enable fullscreen preview for images/videos by setting `mediaFullscreen={true}` on the Editor. If not set, media is not clickable by default.
-- **Smart Cursor Positioning:** Automatic cursor positioning after media, mention, and emoji insertion
+- **Smart Cursor Positioning:** Automatic cursor positioning after media, mention, emoji, and code block insertion
 - **Reliable Button Operation:** Fixed image/video insert buttons for consistent functionality
 - **Enhanced Error Handling:** Better error handling and debugging for file operations
-
----
-
-## Props
-| Prop                | Type     | Default   | Description |
-|---------------------|----------|-----------|-------------|
-| `theme`             | string   | 'light'   | 'light' or 'dark' |
-| `mentions`          | array    | []        | Array of user objects: `[{id, name, profile_pic?}]` |
-| `onMediaUpload`     | function | undefined | Custom upload handler: `(file, type) => Promise<{url, type, name}>` |
-| `value`             | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
-| `onChange`          | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
-| `mediaFullscreen`   | boolean  | false     | If true, images/videos are clickable and open in fullscreen overlay. If false or not set, media is not clickable. |
+- **Existing Media Support:** All existing images/videos in editor content automatically get fullscreen functionality
 
 ---
 
@@ -197,6 +159,19 @@ The editor supports multiple ways to insert media:
 | Blockquote | Ctrl+Q / Cmd+Q |
 | Ordered List | Ctrl+Shift+L / Cmd+Shift+L |
 | Unordered List | Ctrl+Shift+U / Cmd+Shift+U |
+| **Code Block** | **Ctrl+K / Cmd+K** |
+
+---
+
+## Props
+| Prop                | Type     | Default   | Description |
+|---------------------|----------|-----------|-------------|
+| `theme`             | string   | 'light'   | 'light' or 'dark' |
+| `mentions`          | array    | []        | Array of user objects: `[{id, name, profile_pic?}]` |
+| `onMediaUpload`     | function | undefined | Custom upload handler: `(file, type) => Promise<{url, type, name}>` |
+| `value`             | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
+| `onChange`          | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
+| `mediaFullscreen`   | boolean  | false     | If true, images/videos are clickable and open in fullscreen overlay. If false or not set, media is not clickable. |
 
 ---
 
@@ -250,6 +225,8 @@ The editor supports multiple ways to insert media:
 - ✅ **Enhanced error handling** - Better error handling for file operations
 - ✅ **Fixed focus management** - Editor doesn't lose focus when clicking toolbar buttons
 - ✅ **Improved event handling** - Better event propagation and button responsiveness
+- ✅ **Added existing media support** - All existing images/videos in content are now clickable for fullscreen
+- ✅ **Code block paste/toolbar** - Code blocks are now easy to insert, auto-format, and support text wrapping
 
 ---
 

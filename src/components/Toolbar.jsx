@@ -36,6 +36,9 @@ const icons = {
   clear: (
     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5"/><text x="2" y="18" fontSize="8" fill="currentColor">Tx</text></svg>
   ),
+  code: (
+    <svg width="20" height="20" fill="none" viewBox="0 0 48 48"><path fill="currentColor" d="M6 12.25A6.25 6.25 0 0 1 12.25 6h23.5A6.25 6.25 0 0 1 42 12.25v23.5A6.25 6.25 0 0 1 35.75 42h-23.5A6.25 6.25 0 0 1 6 35.75zm6.25-3.75a3.75 3.75 0 0 0-3.75 3.75v23.5a3.75 3.75 0 0 0 3.75 3.75h23.5a3.75 3.75 0 0 0 3.75-3.75v-23.5a3.75 3.75 0 0 0-3.75-3.75zm8.634 6.866a1.25 1.25 0 0 1 0 1.768L14.018 24l6.866 6.866a1.25 1.25 0 0 1-1.768 1.768l-7.75-7.75a1.25 1.25 0 0 1 0-1.768l7.75-7.75a1.25 1.25 0 0 1 1.768 0m8 0a1.25 1.25 0 0 0-1.768 1.768L33.982 24l-6.866 6.866a1.25 1.25 0 0 0 1.768 1.768l7.75-7.75a1.25 1.25 0 0 0 0-1.768z"/></svg>
+  ),
 };
 
 const emojis = [
@@ -53,9 +56,10 @@ const tooltips = {
   video: { label: 'Insert Video', shortcut: '' },
   emoji: { label: 'Emoji', shortcut: '' },
   clear: { label: 'Clear Formatting', shortcut: '' },
+  code: { label: 'Code Block', shortcut: 'Ctrl+K' },
 };
 
-export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, isFocused }) {
+export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, onInsertCodeBlock, isFocused, isCodeBlockActive }) {
   const imgInput = useRef();
   const vidInput = useRef();
   const emojiBtnRef = useRef();
@@ -98,7 +102,7 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
   return (
     <div className={`tf-toolbar ${theme === 'dark' ? 'tf-dark' : ''}`}>
       {Object.entries(icons).map(([key, icon]) => {
-        if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear') return null;
+        if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear' || key === 'code') return null;
         let active = false;
         if (isFocused) {
           if (key === 'bold' || key === 'italic' || key === 'underline' || key === 'strikethrough') {
@@ -198,6 +202,9 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
           </div>
         )}
       </div>
+      <Tooltip label={tooltips.code.label} shortcut={tooltips.code.shortcut} theme={theme}>
+        <button title="Insert Code Block" className={`tf-toolbar-btn${isCodeBlockActive ? ' active' : ''}`} onClick={e => {e.preventDefault();e.stopPropagation();onInsertCodeBlock();}}>{icons.code}</button>
+      </Tooltip>
       <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
         <button title="Clear Formatting" className="tf-toolbar-btn" onClick={e => {e.preventDefault();e.stopPropagation();onClearFormatting();}}>{icons.clear}</button>
       </Tooltip>
