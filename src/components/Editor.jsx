@@ -47,7 +47,7 @@ function moveCursorToEnd(editorRef) {
   editor.focus();
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, mediaFullscreen = false }) {
+export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, onEnter, mediaFullscreen = false }) {
   const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -214,7 +214,13 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     updateContent();
     if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
+  const handleEnterKey = (e) => {
+    if (onEnter) onEnter(e);
+  };
   const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleEnterKey(e);
+    }
     // Bold: Ctrl+B or Cmd+B
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
@@ -288,6 +294,18 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   // Insert emoji at caret
   const handleInsertEmoji = emoji => {
+    // Ensure editor is focused
+    if (document.activeElement !== editorRef.current) {
+      editorRef.current.focus();
+      // Move caret to end
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    // Now insert emoji at caret
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
@@ -296,7 +314,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     sel.removeAllRanges();
     sel.addRange(range);
     updateContent();
-    if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
 
   // Clear formatting
@@ -574,7 +591,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   React.useEffect(() => {
     const handleSelectionChange = () => {
       setIsFocused(document.activeElement === editorRef.current);
-      setIsCodeBlockActiveState(isCodeBlockActive());
+      setIsCodeBlockActiveState(isCodeBlockActive(editorRef));
     };
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => document.removeEventListener('selectionchange', handleSelectionChange);

@@ -28,12 +28,25 @@ export function isFormatActive(command, value = null) {
   return document.queryCommandState(command);
 }
 
-export function isCodeBlockActive() {
+export function isCodeBlockActive(editorRef) {
   const selection = window.getSelection();
   if (!selection.rangeCount) return false;
   let node = selection.anchorNode;
+  // Only check inside the given editorRef
+  if (editorRef && editorRef.current) {
+    let insideEditor = false;
+    let temp = node;
+    while (temp) {
+      if (temp === editorRef.current) {
+        insideEditor = true;
+        break;
+      }
+      temp = temp.parentNode;
+    }
+    if (!insideEditor) return false;
+  }
   while (node) {
-    if (node.nodeType === 1 && node.classList && node.classList.contains('tf-code-block')) return true;
+    if (node.nodeName === 'PRE' && node.classList && node.classList.contains('tf-code-block')) return true;
     node = node.parentNode;
   }
   return false;

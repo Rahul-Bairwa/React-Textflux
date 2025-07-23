@@ -516,7 +516,7 @@ body {
 .tf-min-w-10 { min-width: 40px; }
 .tf-min-h-10 { min-height: 40px; }
 .tf-rounded-full { border-radius: 50%; }
-.tf-object-cover { object-fit: cover; }
+.tf-object-cover { object-fit: cover;width: 100%;height: 100%; }
 
 .tf-editor-area.tf-dropzone-active {
   border: 2px dashed var(--accent-color);

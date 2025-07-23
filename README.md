@@ -88,6 +88,15 @@ function App() {
     { id: 3, name: 'Bob Johnson' } // without profile_pic
   ];
 
+  // Example: custom API call and clear on Enter
+  const handleEnter = async (e) => {
+    // 1. API call
+    await fetch('/your-api', { method: 'POST', body: JSON.stringify({ content: description }) });
+    // 2. Clear editor (controlled mode)
+    setDescription('');
+    // (Uncontrolled: e.target.innerHTML = '';) 
+  };
+
   return (
     <Editor
       theme="light" // or "dark"
@@ -96,12 +105,15 @@ function App() {
       value={description} // controlled value
       onChange={setDescription} // updates state on any content change
       mediaFullscreen={true} // <-- Add this line to enable fullscreen media preview
+      onEnter={handleEnter} // <-- Called when Enter is pressed
     />
   );
 }
 ```
 
 > **Note:** The `value` prop makes the editor controlled, just like a textarea. Pass your HTML string to `value`, and update it via `onChange`. All content changes (typing, media insert, mentions, formatting) will trigger `onChange` with the latest HTML.
+
+> **Note:** The `onEnter` prop is called whenever the user presses Enter in the editor. You can use it for custom actions like submitting, saving, or clearing the editor. In controlled mode, clear the editor by setting your value state to ''. In uncontrolled mode, use `e.target.innerHTML = ''` inside onEnter.
 
 ---
 
@@ -172,6 +184,33 @@ The editor now automatically positions the cursor in the most logical place afte
 | `value`             | string   | undefined | **Controlled value**: HTML string to display in the editor. Use with `onChange` for controlled usage. |
 | `onChange`          | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
 | `mediaFullscreen`   | boolean  | false     | If true, images/videos are clickable and open in fullscreen overlay. If false or not set, media is not clickable. |
+| `onEnter`           | function | undefined | Called with the keyboard event when Enter is pressed in the editor. Use for custom submit, save, or clear logic. |
+
+---
+
+## onEnter: API Call & Clear Example
+
+**Controlled mode:**
+```jsx
+<Editor
+  value={description}
+  onChange={setDescription}
+  onEnter={async () => {
+    await fetch('/api/save', { method: 'POST', body: JSON.stringify({ content: description }) });
+    setDescription(''); // clear editor
+  }}
+/>
+```
+
+**Uncontrolled mode:**
+```jsx
+<Editor
+  onEnter={async (e) => {
+    await fetch('/api/save', { method: 'POST', body: JSON.stringify({ content: e.target.innerHTML }) });
+    e.target.innerHTML = '';
+  }}
+/>
+```
 
 ---
 
