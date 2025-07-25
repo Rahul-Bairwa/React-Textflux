@@ -326,6 +326,17 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   // Insert code block
   const handleInsertCodeBlock = () => {
+    // Ensure editor is focused
+    if (document.activeElement !== editorRef.current) {
+      editorRef.current.focus();
+      // Move caret to end
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
@@ -339,7 +350,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 12px;
-      margin: 8px 0;
+      margin: 8px 0 0 0;
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
       font-size: 13px;
       line-height: 1.4;
@@ -356,7 +367,12 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     // Insert the code block
     range.insertNode(codeBlock);
 
-    // Move cursor inside the code block
+    // Insert a new line after code block
+    const newLine = document.createElement('div');
+    newLine.appendChild(document.createElement('br'));
+    codeBlock.parentNode.insertBefore(newLine, codeBlock.nextSibling);
+
+    // Move cursor inside the code block (not after)
     range.selectNodeContents(codeBlock);
     range.collapse(true);
     sel.removeAllRanges();

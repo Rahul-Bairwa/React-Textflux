@@ -13,7 +13,7 @@
 - **Enhanced error handling:** Better error handling for file operations and media uploads
 - **Focus management:** Improved focus handling between editor and toolbar
 - **Existing media support:** All existing images/videos in editor content are automatically clickable for fullscreen preview
-- **Code block support:** Insert code blocks via toolbar or Ctrl+K, and paste code from IDE for auto-formatting
+- **Code block UX:** When you insert a code block, a new line is automatically added after it, but focus stays inside the code block so you can start typing code immediately. Move out of the code block with arrow keys or mouse to continue writing.
 
 ---
 
@@ -38,8 +38,11 @@ A minimal, modular, and customizable React rich text editor component with:
 - **Paste code from any IDE** and it will auto-format as a code block
 - **Text wrapping** and horizontal scroll for long lines
 - **Monospace font** for code clarity
-- **Continue typing after code**: After pasting/inserting code, a new line is added so you can keep writing
-- **Highlighting**: Toolbar button is highlighted when your cursor is inside a code block
+- **Continue typing after code:** After pasting/inserting code, a new line is added so you can keep writing. **Focus remains inside the code block so you can start typing code immediately.**
+- **Move out of code block:** Use arrow keys or mouse to move to the new line and continue writing after the code block.
+- **Highlighting:** Toolbar button is highlighted when your cursor is inside a code block
+
+> **Tip:** After inserting a code block, just start typing your code. To continue writing outside the code block, use the arrow keys or click on the new line below the code block.
 
 ---
 
@@ -144,7 +147,7 @@ The editor now automatically positions the cursor in the most logical place afte
 - **Emoji Picker:** 200+ emojis, fast search, **outside click to close**
 - **Media:** Render images/videos (upload logic is up to you), **click to fullscreen preview**
 - **Media Skeleton:** Animated skeleton loader while uploading/inserting
-- **Code Block:** Insert code blocks via toolbar or Ctrl+K, auto-format on paste, text wrapping, monospace font
+- **Code Block:** Insert code blocks via toolbar or Ctrl+K, auto-format on paste, text wrapping, monospace font, **auto new line after code block with focus inside code block**
 - **Theme:** Light & dark mode (prop)
 - **Keyboard Shortcuts:** Tooltips show shortcuts (e.g. Ctrl+B, Ctrl+K)
 - **Custom CSS:** No Tailwind/Bootstrap required
@@ -231,43 +234,4 @@ The editor now automatically positions the cursor in the most logical place afte
 - Ensure file input permissions are granted
 
 ### [plugin:vite:import-analysis] Failed to resolve entry for package
-- Make sure your `package.json` has correct `main`, `module`, and `exports` fields.
-- Both `dist/index.es.js` and `dist/index.umd.js` must exist after build.
-
-### React Context/JSX Runtime Errors
-- Ensure your library's Vite config has:
-  ```js
-  external: [
-    'react',
-    'react-dom',
-    'react/jsx-runtime',
-    'react/jsx-dev-runtime'
-  ]
-  ```
-- And `output.globals` includes:
-  ```js
-  globals: {
-    react: 'React',
-    'react-dom': 'ReactDOM',
-    'react/jsx-runtime': 'jsxRuntime',
-    'react/jsx-dev-runtime': 'jsxDevRuntime'
-  }
-  ```
-- Consumer app and library must use the **same React version**.
-
----
-
-## Recent Bug Fixes
-
-- ✅ **Fixed image/video insert buttons** - Now work reliably every time
-- ✅ **Improved cursor positioning** - Automatically moves to end after media insertion
-- ✅ **Enhanced error handling** - Better error handling for file operations
-- ✅ **Fixed focus management** - Editor doesn't lose focus when clicking toolbar buttons
-- ✅ **Improved event handling** - Better event propagation and button responsiveness
-- ✅ **Added existing media support** - All existing images/videos in content are now clickable for fullscreen
-- ✅ **Code block paste/toolbar** - Code blocks are now easy to insert, auto-format, and support text wrapping
-
----
-
-## License
-MIT
+- Make sure your `package.json` has correct `main`, `
