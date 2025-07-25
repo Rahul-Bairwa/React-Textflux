@@ -214,12 +214,22 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     updateContent();
     if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
-  const handleEnterKey = (e) => {
-    if (onEnter) onEnter(e);
-  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      handleEnterKey(e);
+      if (e.shiftKey) {
+        e.preventDefault();
+        document.execCommand('insertLineBreak'); // or 'insertHTML', '<br><br>'
+        return;
+      } else {
+        e.preventDefault();
+        if(onEnter){
+          onEnter(e);
+        }else{
+          document.execCommand('insertLineBreak');
+        }
+        return;
+      }
     }
     // Bold: Ctrl+B or Cmd+B
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {

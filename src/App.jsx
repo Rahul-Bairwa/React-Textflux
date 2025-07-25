@@ -20,6 +20,7 @@ export default function App() {
         value={content} 
         placeholder="Write something..."
         mediaFullscreen={true}
+        onEnter={()=>console.log("enter")}
       />
     </div>
   );
