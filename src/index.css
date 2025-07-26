@@ -264,14 +264,14 @@ body {
   bottom: 100%;
   left: 0;
   margin-top: 4px;
-  max-width: 209px;
+  max-width: 219px;
   max-height: 209px;
   overflow-y: auto;
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px;
   border-radius: 6px;
-  width: 209px;
+  width: 219px;
   height: 209px;
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) var(--bg-primary);
@@ -305,6 +305,18 @@ body {
   background: var(--bg-secondary);
 }
 
+.tf-emoji-btn.tf-emoji-selected {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  transform: scale(1.1);
+}
+.tf-emoji-category-title{
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  padding-left: 4px;
+}
 /* File Input */
 .tf-file-input {
   display: none;

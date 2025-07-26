@@ -4,6 +4,7 @@ import MentionList from './MentionList';
 import MediaBlock from './MediaBlock';
 import useEditor from '../hooks/useEditor';
 import { isCodeBlockActive } from '../utils/formatting';
+import { EMOJI_LIST } from './emojiData';
 
 // Utility function to convert file to base64
 const fileToBase64 = (file) => {
@@ -62,17 +63,29 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Add a flag to prevent mention list from re-opening immediately after selection
   const [justSelectedMention, setJustSelectedMention] = useState(false);
 
+  // Emoji picker states for toolbar
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiSearchQuery, setEmojiSearchQuery] = useState('');
+
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
     (u.name || '').toLowerCase().includes(mentionQuery.toLowerCase())
   );
 
-  // Handle key events for @mention
+  // Filtered emoji list
+  const filteredEmojis = React.useMemo(() => {
+    if (!emojiSearchQuery) return [];
+    const q = emojiSearchQuery.toLowerCase();
+    return EMOJI_LIST.filter(e =>
+      e.keywords.some(k => k.includes(q)) ||
+      (e.emoji && e.emoji.includes(q))
+    );
+  }, [emojiSearchQuery]);
+
+  // Handle key events for @mention and :emoji
   const handleKeyUp = e => {
     updateContent();
-
     if (justSelectedMention) return;
-
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
@@ -99,6 +112,18 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       curr = curr.previousSibling;
     }
 
+    // Emoji trigger - show in toolbar
+    const colonIdx = text.lastIndexOf(':');
+    if (colonIdx !== -1 && (colonIdx === 0 || /\s/.test(text[colonIdx - 1]))) {
+      const query = text.slice(colonIdx + 1);
+      setShowEmojiPicker(true);
+      setEmojiSearchQuery(query);
+    } else {
+      setShowEmojiPicker(false);
+      setEmojiSearchQuery('');
+    }
+
+    // Mention trigger
     const atIdx = text.lastIndexOf('@');
     if (atIdx !== -1) {
       setShowMention(true);
@@ -173,6 +198,40 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         setJustSelectedMention(false);
       }, 100);
     }, 0);
+  };
+
+  // Insert emoji at caret (called from toolbar)
+  const handleInsertEmoji = emoji => {
+    if (document.activeElement !== editorRef.current) {
+      editorRef.current.focus();
+      // Move caret to end
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    // Remove :query
+    const text = range.startContainer.textContent;
+    const colonIdx = text.lastIndexOf(':');
+    if (colonIdx !== -1) {
+      range.setStart(range.startContainer, colonIdx);
+      range.deleteContents();
+    }
+    range.insertNode(document.createTextNode(emoji));
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    setShowEmojiPicker(false);
+    setEmojiSearchQuery('');
+    updateContent();
+    if (onChange && editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
   };
 
   // Handle drag-and-drop media
@@ -264,12 +323,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   };
 
   const handleKeyDown = (e) => {
+    
     if (e.key === 'Enter') {
-      // If mention list is visible, let MentionList handle the Enter key
-      if (showMention && mentionSuggestions.length > 0) {
+      if (showMention && mentionSuggestions.length > 0 || showEmojiPicker) {
         return;
       }
-      
       if (e.shiftKey) {
         e.preventDefault();
         document.execCommand('insertLineBreak'); // or 'insertHTML', '<br><br>'
@@ -353,30 +411,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       e.preventDefault();
       handleInsertCodeBlock();
     }
-  };
-
-  // Insert emoji at caret
-  const handleInsertEmoji = emoji => {
-    // Ensure editor is focused
-    if (document.activeElement !== editorRef.current) {
-      editorRef.current.focus();
-      // Move caret to end
-      const range = document.createRange();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-    // Now insert emoji at caret
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    range.insertNode(document.createTextNode(emoji));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    updateContent();
   };
 
   // Clear formatting
@@ -715,6 +749,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onInsertCodeBlock={handleInsertCodeBlock}
         isFocused={isFocused}
         isCodeBlockActive={isCodeBlockActiveState}
+        showEmojiPicker={showEmojiPicker}
+        emojiSearchQuery={emojiSearchQuery}
       />
       {showMention && (
         <MentionList
