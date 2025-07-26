@@ -59,6 +59,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [toolbarRerender, setToolbarRerender] = useState(0);
   // Add a state for code block active
   const [isCodeBlockActiveState, setIsCodeBlockActiveState] = useState(false);
+  // Add a flag to prevent mention list from re-opening immediately after selection
+  const [justSelectedMention, setJustSelectedMention] = useState(false);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -68,10 +70,35 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Handle key events for @mention
   const handleKeyUp = e => {
     updateContent();
+
+    if (justSelectedMention) return;
+
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
-    const text = range.startContainer.textContent?.slice(0, range.startOffset) || '';
+    let node = range.startContainer;
+    while (node && node.nodeType !== Node.ELEMENT_NODE) node = node.parentNode;
+    if (node?.classList?.contains('tf-mention')) {
+      setShowMention(false);
+      setMentionQuery('');
+      return;
+    }
+
+    // Get plain text before cursor, skipping mention spans
+    let text = '';
+    let curr = range.startContainer;
+    let offset = range.startOffset;
+    if (curr.nodeType === Node.TEXT_NODE) {
+      text = curr.textContent.slice(0, offset);
+      curr = curr.previousSibling;
+    }
+    while (curr) {
+      if (curr.nodeType === Node.TEXT_NODE) text = curr.textContent + text;
+      else if (curr.nodeType === Node.ELEMENT_NODE && !curr.classList.contains('tf-mention'))
+        text = curr.textContent + text;
+      curr = curr.previousSibling;
+    }
+
     const atIdx = text.lastIndexOf('@');
     if (atIdx !== -1) {
       setShowMention(true);
@@ -117,13 +144,34 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
     setShowMention(false);
     setMentionQuery('');
+    setJustSelectedMention(true);
     updateContent();
     if (onChange && editorRef.current) {
       onChange(editorRef.current.innerHTML);
     }
-    // Move cursor after mention insertion
+    // Move cursor after mention insertion and ensure it's not inside the mention span
     setTimeout(() => {
-      moveCursorToEnd(editorRef);
+      const sel = window.getSelection();
+      if (sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        // If cursor is inside the mention span, move it after
+        let currentNode = range.startContainer;
+        while (currentNode && currentNode.nodeType !== Node.ELEMENT_NODE) {
+          currentNode = currentNode.parentNode;
+        }
+        if (currentNode && currentNode.classList && currentNode.classList.contains('tf-mention')) {
+          range.setStartAfter(currentNode);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+      editorRef.current.focus();
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setJustSelectedMention(false);
+      }, 100);
     }, 0);
   };
 
@@ -217,6 +265,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
+      // If mention list is visible, let MentionList handle the Enter key
+      if (showMention && mentionSuggestions.length > 0) {
+        return;
+      }
+      
       if (e.shiftKey) {
         e.preventDefault();
         document.execCommand('insertLineBreak'); // or 'insertHTML', '<br><br>'
