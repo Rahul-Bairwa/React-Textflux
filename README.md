@@ -2,6 +2,7 @@
 
 ## 🚀 What's New
 - **Production ready:** All major bugs fixed, UX polished
+- **Enhanced Emoji Picker:** Type `:` in editor to trigger emoji search, keyboard navigation with arrow keys, auto-scroll, recently used emojis, and category organization
 - **Mention dropdown:** Keyboard navigation auto-scrolls, dark/light theme highlight, visible text always
 - **Media skeleton loader:** Shows animated skeleton while uploading/inserting images/videos
 - **Unified media handling:** Paste, drag-and-drop, and toolbar all use the same upload logic
@@ -20,7 +21,7 @@
 A minimal, modular, and customizable React rich text editor component with:
 - Basic formatting (bold, italic, underline, strikethrough, blockquote, lists)
 - @mention with profile pic/initials
-- Emoji picker (hundreds of emojis)
+- **Enhanced Emoji Picker:** Type `:` to search emojis, keyboard navigation, recently used, categories
 - Media rendering (image/video) with fullscreen preview
 - **Code block support with text wrapping and monospace font**
 - Dark/light theme support
@@ -29,6 +30,37 @@ A minimal, modular, and customizable React rich text editor component with:
 - **Optional fullscreen media preview**
 - **Smart cursor positioning for seamless writing experience**
 - **Existing media support for fullscreen preview**
+
+---
+
+## Enhanced Emoji Picker
+
+### Trigger Emoji Search
+- **Type `:` in editor** to open emoji picker with search functionality
+- **Real-time search** as you type after `:` (e.g., `:smile`, `:heart`, `:food`)
+- **Keyboard navigation** with arrow keys (↑↓←→) and Enter to select
+- **Auto-scroll** keeps selected emoji visible during navigation
+- **Escape key** to close emoji picker
+
+### Emoji Categories & Recently Used
+- **Recently used emojis** appear at the top for quick access
+- **Category organization:** Smileys, Hearts, Food, Animals, Nature, Activity, Travel, Objects
+- **Popular emojis** pre-loaded in recently used section
+- **Local storage** remembers your frequently used emojis
+
+### Keyboard Navigation
+- **Arrow keys** for grid navigation (up/down for rows, left/right for columns)
+- **Enter** to select highlighted emoji
+- **Escape** to close picker
+- **Auto-scroll** follows your navigation smoothly
+- **Mouse hover** also updates selection
+
+### Usage Examples
+```
+Type in editor: ":smile" → Shows all smile-related emojis
+Type in editor: ":heart" → Shows all heart/love emojis  
+Type in editor: ":food" → Shows all food emojis
+```
 
 ---
 
@@ -135,7 +167,7 @@ The editor now automatically positions the cursor in the most logical place afte
 
 - **Media Insertion:** After inserting images/videos via toolbar, drag & drop, or paste, the cursor moves to the end so you can continue typing
 - **Mention Insertion:** After selecting a mention from the dropdown, cursor moves to the end
-- **Emoji Insertion:** After inserting an emoji, cursor moves to the end
+- **Emoji Insertion:** After inserting an emoji, cursor moves to the end with automatic space
 - **Seamless Writing:** No more manual cursor positioning - just keep typing naturally
 - **Code Block Paste:** After pasting code, a new line is added so you can keep typing outside the code block
 
@@ -144,7 +176,7 @@ The editor now automatically positions the cursor in the most logical place afte
 ## Features
 - **Formatting:** Bold, Italic, Underline, Strikethrough, Blockquote, Lists
 - **@Mention:** User list with profile pic/initials, keyboard navigation, auto-scroll
-- **Emoji Picker:** 200+ emojis, fast search, **outside click to close**
+- **Enhanced Emoji Picker:** Type `:` to search, keyboard navigation, recently used, categories, auto-scroll
 - **Media:** Render images/videos (upload logic is up to you), **click to fullscreen preview**
 - **Media Skeleton:** Animated skeleton loader while uploading/inserting
 - **Code Block:** Insert code blocks via toolbar or Ctrl+K, auto-format on paste, text wrapping, monospace font, **auto new line after code block with focus inside code block**
@@ -175,6 +207,14 @@ The editor now automatically positions the cursor in the most logical place afte
 | Ordered List | Ctrl+Shift+L / Cmd+Shift+L |
 | Unordered List | Ctrl+Shift+U / Cmd+Shift+U |
 | **Code Block** | **Ctrl+K / Cmd+K** |
+
+### Emoji Navigation
+| Action | Key |
+|--------|-----|
+| Open emoji search | Type `:` in editor |
+| Navigate emojis | Arrow keys (↑↓←→) |
+| Select emoji | Enter |
+| Close picker | Escape |
 
 ---
 
@@ -219,7 +259,7 @@ The editor now automatically positions the cursor in the most logical place afte
 
 ## Customization
 - **Mentions:** Pass your user list as `mentions` prop
-- **Emoji List:** Edit `Toolbar.jsx` emojis array
+- **Emoji List:** Edit `emojiData.js` to add/modify emojis and categories
 - **CSS:** Edit `src/index.css` for full style control (all classes use `tf-` prefix)
 - **Toolbar/Theme:** Update colors in `src/index.css` for your brand
 - **Media Fullscreen:** Use the `mediaFullscreen` prop to control whether media is clickable for fullscreen preview.
@@ -233,5 +273,11 @@ The editor now automatically positions the cursor in the most logical place afte
 - If issues persist, check browser console for error messages
 - Ensure file input permissions are granted
 
+### Emoji Picker Not Opening
+- **Type `:` in editor** to trigger emoji search
+- Ensure no other keyboard shortcuts are conflicting
+- Check browser console for any JavaScript errors
+
 ### [plugin:vite:import-analysis] Failed to resolve entry for package
-- Make sure your `package.json` has correct `main`, `
+- Make sure your `package.json` has correct `main`, `module`, and `exports` fields
+- Clear node_modules and reinstall: `rm -rf node_modules package-lock.json && npm install`
