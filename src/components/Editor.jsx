@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Toolbar from './Toolbar';
 import MentionList from './MentionList';
+import EmojiPicker from './EmojiPicker';
 import MediaBlock from './MediaBlock';
 import useEditor from '../hooks/useEditor';
 import { isCodeBlockActive } from '../utils/formatting';
@@ -30,6 +31,33 @@ function getCaretCoordinates(editorRef) {
     };
   }
   return { top: 0, left: 0 };
+}
+
+function getOptimalEmojiPosition(editorRef, basePosition) {
+  if (!editorRef?.current) return basePosition;
+  
+  const editorRect = editorRef.current.getBoundingClientRect();
+  const pickerWidth = 320; // Approximate width of emoji picker
+  const pickerHeight = 300; // Max height of emoji picker
+  
+  let { top, left } = basePosition;
+  
+  // Check if picker overflows to the right
+  if (left + pickerWidth > editorRect.width) {
+    left = Math.max(10, editorRect.width - pickerWidth - 10);
+  }
+  
+  // Check if picker overflows to the bottom
+  if (top + pickerHeight > editorRect.height) {
+    top = Math.max(10, top - pickerHeight - 20);
+  }
+  
+  // Check if picker overflows to the left
+  if (left < 0) {
+    left = 10;
+  }
+  
+  return { top, left };
 }
 
 function moveCursorToEnd(editorRef) {
@@ -63,9 +91,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Add a flag to prevent mention list from re-opening immediately after selection
   const [justSelectedMention, setJustSelectedMention] = useState(false);
 
-  // Emoji picker states for toolbar
+  // Emoji picker states for cursor position
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearchQuery, setEmojiSearchQuery] = useState('');
+  const [emojiPos, setEmojiPos] = useState({ top: 0, left: 0 });
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -112,12 +141,15 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       curr = curr.previousSibling;
     }
 
-    // Emoji trigger - show in toolbar
+    // Emoji trigger - show at cursor position
     const colonIdx = text.lastIndexOf(':');
     if (colonIdx !== -1 && (colonIdx === 0 || /\s/.test(text[colonIdx - 1]))) {
       const query = text.slice(colonIdx + 1);
+      const basePosition = getCaretCoordinates(editorRef);
+      const optimalPosition = getOptimalEmojiPosition(editorRef, basePosition);
       setShowEmojiPicker(true);
       setEmojiSearchQuery(query);
+      setEmojiPos(optimalPosition);
     } else {
       setShowEmojiPicker(false);
       setEmojiSearchQuery('');
@@ -200,37 +232,132 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }, 0);
   };
 
-  // Insert emoji at caret (called from toolbar)
-  const handleInsertEmoji = emoji => {
-    if (document.activeElement !== editorRef.current) {
-      editorRef.current.focus();
-      // Move caret to end
-      const range = document.createRange();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
+  // Insert emoji at caret (called from EmojiPicker or toolbar button)
+  const handleInsertEmoji = (emoji, fromToolbar = false) => {
+    // If called from toolbar button, show emoji picker
+    if (fromToolbar) {
+      const basePosition = getCaretCoordinates(editorRef);
+      const optimalPosition = getOptimalEmojiPosition(editorRef, basePosition);
+      setShowEmojiPicker(true);
+      setEmojiSearchQuery('');
+      setEmojiPos(optimalPosition);
+      return;
+    }
+    
+    try {
+      // Ensure editor is focused and cursor is inside editor
+      if (editorRef.current && document.activeElement !== editorRef.current) {
+        editorRef.current.focus();
+      }
+      
       const sel = window.getSelection();
+      if (!sel.rangeCount) {
+        // If no selection, place cursor at end of editor
+        if (editorRef.current) {
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          return;
+        }
+      }
+      
+      let range = sel.getRangeAt(0);
+      
+      // Check if cursor is inside the editor
+      if (!editorRef.current.contains(range.startContainer)) {
+        // Cursor is outside editor, move it to end of editor
+        const newRange = document.createRange();
+        newRange.selectNodeContents(editorRef.current);
+        newRange.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        range = newRange;
+      }
+      
+      // Handle empty editor case
+      if (!range.startContainer || !range.startContainer.textContent) {
+        // Editor is empty, just insert emoji at the beginning
+        const emojiNode = document.createTextNode(emoji);
+        range.insertNode(emojiNode);
+        range.setStartAfter(emojiNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setShowEmojiPicker(false);
+        setEmojiSearchQuery('');
+        updateContent();
+        if (onChange && editorRef.current) {
+          onChange(editorRef.current.innerHTML);
+        }
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.focus();
+          }
+        }, 0);
+        return;
+      }
+      
+      const text = range.startContainer.textContent;
+      const colonIdx = text.lastIndexOf(':');
+      
+      if (colonIdx !== -1) {
+        // Validate that the offset is within bounds
+        const maxOffset = range.startContainer.textContent.length;
+        const safeOffset = Math.min(colonIdx, maxOffset);
+        
+        try {
+          range.setStart(range.startContainer, safeOffset);
+          range.deleteContents();
+        } catch (error) {
+          console.warn('Error setting range start:', error);
+          // If setting range fails, just insert the emoji at current position
+        }
+      }
+      
+      // Insert the emoji
+      const emojiNode = document.createTextNode(emoji);
+      range.insertNode(emojiNode);
+      
+      // Move cursor after the emoji
+      range.setStartAfter(emojiNode);
+      range.collapse(true);
+      
       sel.removeAllRanges();
       sel.addRange(range);
-    }
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    // Remove :query
-    const text = range.startContainer.textContent;
-    const colonIdx = text.lastIndexOf(':');
-    if (colonIdx !== -1) {
-      range.setStart(range.startContainer, colonIdx);
-      range.deleteContents();
-    }
-    range.insertNode(document.createTextNode(emoji));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    setShowEmojiPicker(false);
-    setEmojiSearchQuery('');
-    updateContent();
-    if (onChange && editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      
+      setShowEmojiPicker(false);
+      setEmojiSearchQuery('');
+      updateContent();
+      
+      if (onChange && editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+      
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.focus();
+        }
+      }, 0);
+      
+    } catch (error) {
+      console.error('Error inserting emoji:', error);
+      // Fallback: just insert emoji at the end
+      if (editorRef.current) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        range.insertNode(document.createTextNode(emoji));
+        editorRef.current.focus();
+        updateContent();
+        if (onChange) {
+          onChange(editorRef.current.innerHTML);
+        }
+      }
+      setShowEmojiPicker(false);
+      setEmojiSearchQuery('');
     }
   };
 
@@ -265,7 +392,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         console.error('No file provided to handleInsertMedia');
         return;
       }
-      console.log('handleInsertMedia called with:', { file, type });
       const id = genId();
       setMediaLoading(m => [...m, { id, type }]);
       let url = '';
@@ -781,14 +907,20 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onInsertCodeBlock={handleInsertCodeBlock}
         isFocused={isFocused}
         isCodeBlockActive={isCodeBlockActiveState}
-        showEmojiPicker={showEmojiPicker}
-        emojiSearchQuery={emojiSearchQuery}
       />
       {showMention && (
         <MentionList
           suggestions={mentionSuggestions}
           onSelect={insertMention}
           position={mentionPos}
+        />
+      )}
+      {showEmojiPicker && (
+        <EmojiPicker
+          searchQuery={emojiSearchQuery}
+          onSelect={handleInsertEmoji}
+          position={emojiPos}
+          theme={theme}
         />
       )}
     </div>

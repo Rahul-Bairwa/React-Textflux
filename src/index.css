@@ -627,3 +627,6 @@ a.tf-link:hover {
   color: var(--text-secondary);
   font-style: italic;
 }
+.tf-capitalize{
+  text-transform: capitalize;
+}

@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { format, isFormatActive } from '../utils/formatting';
 import Tooltip from './Tooltip';
-import { EMOJI_LIST } from './emojiData';
+
 const icons = {
   bold: (
     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M7 4h4a3 3 0 0 1 0 6H7zm0 6h5a3 3 0 0 1 0 6H7z" stroke="currentColor" strokeWidth="1.5" /></svg>
@@ -41,7 +41,6 @@ const icons = {
   ),
 };
 
-
 const tooltips = {
   bold: { label: 'Bold', shortcut: 'Ctrl+B' },
   italic: { label: 'Italic', shortcut: 'Ctrl+I' },
@@ -52,165 +51,15 @@ const tooltips = {
   unorderedList: { label: 'Unordered List', shortcut: 'Ctrl+Shift+U' },
   image: { label: 'Insert Image', shortcut: '' },
   video: { label: 'Insert Video', shortcut: '' },
-  emoji: { label: 'Emoji', shortcut: '' },
+  emoji: { label: 'Emoji', shortcut: 'type : to search' },
   clear: { label: 'Clear Formatting', shortcut: '' },
   code: { label: 'Code Block', shortcut: 'Ctrl+K' },
 };
 
-export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, onInsertCodeBlock, isFocused, isCodeBlockActive, showEmojiPicker = false, emojiSearchQuery = '' }) {
+export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, onInsertCodeBlock, isFocused, isCodeBlockActive }) {
   const imgInput = useRef();
   const vidInput = useRef();
-  const emojiBtnRef = useRef();
-  const emojiPickerRef = useRef();
-  const [showEmoji, setShowEmoji] = useState(false);
   const [, setRerender] = useState(0);
-  const [recentEmojis, setRecentEmojis] = useState(['😀', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '😍', '🥰', '😘']);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  // Filter emojis based on search query
-  const filteredEmojis = React.useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    if (!query) return EMOJI_LIST;
-    return EMOJI_LIST.filter(e =>
-      e.keywords.some(k => k.includes(query)) ||
-      (e.emoji && e.emoji.includes(query))
-    );
-  }, [searchQuery]);
-
-  // Group emojis by category (filtered if search is active)
-  const emojisByCategory = React.useMemo(() => {
-    const emojisToGroup = searchQuery ? filteredEmojis : EMOJI_LIST;
-    const grouped = {};
-    emojisToGroup.forEach(emoji => {
-      if (!grouped[emoji.category]) {
-        grouped[emoji.category] = [];
-      }
-      grouped[emoji.category].push(emoji);
-    });
-    return grouped;
-  }, [filteredEmojis, searchQuery]);
-
-  // Get all emojis in a flat array for navigation
-  const allEmojis = React.useMemo(() => {
-    if (searchQuery) {
-      return filteredEmojis;
-    }
-    return recentEmojis.map(emoji => ({ emoji, keywords: [emoji] })).concat(EMOJI_LIST);
-  }, [searchQuery, filteredEmojis, recentEmojis]);
-
-  // Auto-scroll to selected emoji
-  const scrollToSelectedEmoji = (index) => {
-    if (!emojiPickerRef.current) return;
-    
-    const emojiButtons = emojiPickerRef.current.querySelectorAll('.tf-emoji-btn');
-    if (emojiButtons[index]) {
-      emojiButtons[index].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'nearest'
-      });
-    }
-  };
-
-  // Show emoji picker when triggered from editor
-  useEffect(() => {
-    if (showEmojiPicker) {
-      setShowEmoji(true);
-      setSearchQuery(emojiSearchQuery || '');
-      setSelectedIndex(0);
-    }
-  }, [showEmojiPicker, emojiSearchQuery]);
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    if (!showEmoji) return;
-
-    const handleKeyDown = (e) => {
-      const itemsPerRow = 7; 
-      
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setSelectedIndex(prev => {
-            const newIndex = prev + itemsPerRow;
-            if (newIndex < allEmojis.length) {
-              setTimeout(() => scrollToSelectedEmoji(newIndex), 0);
-              return newIndex;
-            }
-            return prev;
-          });
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setSelectedIndex(prev => {
-            const newIndex = prev - itemsPerRow;
-            if (newIndex >= 0) {
-              setTimeout(() => scrollToSelectedEmoji(newIndex), 0);
-              return newIndex;
-            }
-            return prev;
-          });
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          setSelectedIndex(prev => {
-            const newIndex = prev + 1;
-            if (newIndex < allEmojis.length) {
-              setTimeout(() => scrollToSelectedEmoji(newIndex), 0);
-              return newIndex;
-            }
-            return prev;
-          });
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          setSelectedIndex(prev => {
-            const newIndex = prev - 1;
-            if (newIndex >= 0) {
-              setTimeout(() => scrollToSelectedEmoji(newIndex), 0);
-              return newIndex;
-            }
-            return prev;
-          });
-          break;
-        case 'Enter':
-          e.preventDefault();
-          if (allEmojis[selectedIndex]) {
-            handleEmojiSelect(allEmojis[selectedIndex]);
-          }
-          break;
-        case 'Escape':
-          e.preventDefault();
-          setShowEmoji(false);
-          setSearchQuery('');
-          setSelectedIndex(0);
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showEmoji, selectedIndex, allEmojis]);
-
-  // Close emoji picker on outside click
-  useEffect(() => {
-    if (!showEmoji) return;
-    function handleClick(e) {
-      if (
-        emojiPickerRef.current &&
-        !emojiPickerRef.current.contains(e.target) &&
-        emojiBtnRef.current &&
-        !emojiBtnRef.current.contains(e.target)
-      ) {
-        setShowEmoji(false);
-        setSearchQuery('');
-        setSelectedIndex(0);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [showEmoji]);
 
   const handleFile = (type) => {
     try {
@@ -224,18 +73,6 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
     } catch (error) {
       console.error('Error opening file dialog:', error);
     }
-  };
-
-  const handleEmojiSelect = (emojiObj) => {
-    setRecentEmojis(prev => {
-      const filtered = prev.filter(e => e !== emojiObj.emoji);
-      const updated = [emojiObj.emoji, ...filtered].slice(0, 50); // Increased to 50
-      return updated;
-    });
-    onInsertEmoji(emojiObj.emoji + '\u00A0'); // Add space after emoji
-    setShowEmoji(false);
-    setSearchQuery('');
-    setSelectedIndex(0);
   };
 
   return (
@@ -322,91 +159,14 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
           }
         }} 
       />
-      <div className="tf-relative">
-        <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
-          <button
-            ref={emojiBtnRef}
-            title="Emoji"
-            className="tf-toolbar-btn"
-            onClick={e => { e.preventDefault(); e.stopPropagation(); setShowEmoji(v => !v); }}
-          >
-            {icons.emoji}
-          </button>
-        </Tooltip>
-        {showEmoji && (
-          <div ref={emojiPickerRef} className={`tf-emoji-picker ${theme === 'dark' ? 'tf-dark' : ''}`}>
-            {/* Search results or Recently used */}
-            {searchQuery ? (
-              <div className="tf-emoji-category">
-                <div className="tf-emoji-grid">
-                  {filteredEmojis.map((emoji, index) => (
-                    <button
-                      key={`search-${emoji.emoji}-${index}`}
-                      className={`tf-emoji-btn ${selectedIndex === index ? 'tf-emoji-selected' : ''}`}
-                      onMouseDown={e => { e.preventDefault(); handleEmojiSelect(emoji); }}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                      title={emoji.keywords.join(', ')}
-                    >
-                      {emoji.emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Recently used category */}
-                {recentEmojis.length > 0 && (
-                  <div className="tf-emoji-category">
-                    <h4 className="tf-emoji-category-title">Recently used</h4>
-                    <div className="tf-emoji-grid">
-                      {recentEmojis.map((emoji, index) => (
-                        <button
-                          key={`recent-${emoji}-${index}`}
-                          className={`tf-emoji-btn ${selectedIndex === index ? 'tf-emoji-selected' : ''}`}
-                          onMouseDown={e => { e.preventDefault(); handleEmojiSelect({ emoji }); }}
-                          onMouseEnter={() => setSelectedIndex(index)}
-                          title={emoji}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* Emoji categories */}
-                <div className="tf-emoji-categories">
-                  {Object.entries(emojisByCategory).map(([category, emojis]) => (
-                    <div key={category} className="tf-emoji-category">
-                      <h4 className="tf-emoji-category-title">{category}</h4>
-                      <div className="tf-emoji-grid">
-                        {emojis.map((emoji, index) => {
-                          const globalIndex = recentEmojis.length + index;
-                          return (
-                            <button
-                              key={`${emoji.emoji}-${index}`}
-                              className={`tf-emoji-btn ${selectedIndex === globalIndex ? 'tf-emoji-selected' : ''}`}
-                              onMouseDown={e => { e.preventDefault(); handleEmojiSelect(emoji); }}
-                              onMouseEnter={() => setSelectedIndex(globalIndex)}
-                              title={emoji.keywords.join(', ')}
-                            >
-                              {emoji.emoji}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+      <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
+        <button title="Emoji (type : to search)" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertEmoji('', true); }}>{icons.emoji}</button>
+      </Tooltip>
       <Tooltip label={tooltips.code.label} shortcut={tooltips.code.shortcut} theme={theme}>
-        <button title="Insert Code Block" className={`tf-toolbar-btn${isCodeBlockActive ? ' active' : ''}`} onClick={e => { e.preventDefault(); e.stopPropagation(); onInsertCodeBlock(); }}>{icons.code}</button>
+        <button title="Code Block" className={`tf-toolbar-btn${isCodeBlockActive ? ' active' : ''}`} tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertCodeBlock(); }}>{icons.code}</button>
       </Tooltip>
       <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
-        <button title="Clear Formatting" className="tf-toolbar-btn" onClick={e => { e.preventDefault(); e.stopPropagation(); onClearFormatting(); }}>{icons.clear}</button>
+        <button title="Clear Formatting" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onClearFormatting(); }}>{icons.clear}</button>
       </Tooltip>
     </div>
   );
