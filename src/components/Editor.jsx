@@ -322,8 +322,34 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
 
-  const handleKeyDown = (e) => {
+  // Handle copy event to preserve hyperlink formatting
+  const handleCopy = (e) => {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const fragment = range.cloneContents();
     
+    // Check if the selection contains any links
+    const links = fragment.querySelectorAll('a');
+    if (links.length > 0 && e.clipboardData) {
+      e.preventDefault();
+      
+      // Create a temporary container to work with the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.appendChild(fragment.cloneNode(true));
+      
+      // Get both HTML and plain text
+      const htmlContent = tempDiv.innerHTML;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Set clipboard data with both HTML and text formats
+      e.clipboardData.setData('text/html', htmlContent);
+      e.clipboardData.setData('text/plain', textContent);
+    }
+  };
+
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       if (showMention && mentionSuggestions.length > 0 || showEmojiPicker) {
         return;
@@ -410,6 +436,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       handleInsertCodeBlock();
+    }
+    // Copy: Ctrl+C - Let the default copy behavior work with our custom handler
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+      // Don't prevent default - let our handleCopy function handle it
+      // The handleCopy function will preserve hyperlink formatting
     }
   };
 
@@ -726,6 +757,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onPaste={handlePaste}
+        onCopy={handleCopy}
         onFocus={() => setIsFocused(true)}
         onBlur={(e) => {
           // Don't blur if clicking on toolbar buttons

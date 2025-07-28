@@ -1,5 +1,16 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Editor from './components/Editor';
+
+// ✅ Custom debounce
+function debounce(func, delay) {
+  let timer;
+  return function (...args) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      func.apply(this, args);
+    }, delay);
+  };
+}
 
 export default function App() {
   const mentions = [
@@ -40,21 +51,79 @@ export default function App() {
     { id: 804, name: 'sumit mehta' },
     { id: 948, name: 'Anusha Chowdam' }
    ];
-  const [content, setContent] = React.useState('');
-  console.log("content", content);
+  const [content, setContent] = useState('');
+  const [isTransformingLinks, setIsTransformingLinks] = useState(false);
+
+  const contentRef = useRef(content);
+  const lastSavedContent = useRef('');
+
+  useEffect(() => {
+    contentRef.current = content;
+    debouncedTransformLinks(content);
+  }, [content]);
+
+  // --- API to transform links ---
+  const transformLinks = async (text) => {
+    if (!text) return text;
+
+    try {
+      const response = await fetch(
+        `https://api.dyzo.ai/change-message/`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.status === 1) {
+        return data.message;
+      }
+
+      return text;
+    } catch (error) {
+      console.error('Error transforming links:', error);
+      return text;
+    }
+  };
+
+  // --- Debounced transform logic using custom debounce ---
+  const debouncedTransformLinks = useCallback(
+    debounce(async (newContent) => {
+      if (newContent !== lastSavedContent.current) {
+        setIsTransformingLinks(true);
+        try {
+          const transformed = await transformLinks(newContent);
+          if (transformed !== contentRef.current) {
+            setContent(transformed);
+            lastSavedContent.current = transformed;
+          }
+        } finally {
+          setIsTransformingLinks(false);
+        }
+      }
+    }, 500),
+    []
+  );
+
   return (
     <div>
       <h1 className="tf-text-center tf-mt-8 tf-mb-4">Minimal Rich Text Editor</h1>
       <Editor
-        theme='dark'
+        theme="dark"
         className="my-mention-box"
         mentions={mentions}
         onChange={setContent}
-        value={content} 
+        value={content}
         placeholder="Write something..."
         mediaFullscreen={true}
-        onEnter={()=>console.log("enter")}
+        onEnter={() => console.log('enter')}
       />
+      {isTransformingLinks && (
+        <p className="tf-text-center tf-text-sm">Transforming links...</p>
+      )}
     </div>
   );
 }
