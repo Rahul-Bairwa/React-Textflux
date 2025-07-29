@@ -57,10 +57,10 @@ export default function App() {
   const contentRef = useRef(content);
   const lastSavedContent = useRef('');
 
-  useEffect(() => {
-    contentRef.current = content;
-    debouncedTransformLinks(content);
-  }, [content]);
+  // useEffect(() => {
+  //   contentRef.current = content;
+  //   debouncedTransformLinks(content);
+  // }, [content]);
 
   // --- API to transform links ---
   const transformLinks = async (text) => {

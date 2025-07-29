@@ -48,7 +48,7 @@ const tooltips = {
   strikethrough: { label: 'Strikethrough', shortcut: 'Ctrl+Shift+S' },
   blockquote: { label: 'Blockquote', shortcut: 'Ctrl+Q' },
   orderedList: { label: 'Ordered List', shortcut: 'Ctrl+Shift+L' },
-  unorderedList: { label: 'Unordered List', shortcut: 'Ctrl+Shift+U' },
+  unorderedList: { label: 'Unordered List', shortcut: 'Ctrl+Shift+O' },
   image: { label: 'Insert Image', shortcut: '' },
   video: { label: 'Insert Video', shortcut: '' },
   emoji: { label: 'Emoji', shortcut: 'type : to search' },

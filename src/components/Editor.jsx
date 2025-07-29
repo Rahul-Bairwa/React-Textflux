@@ -480,6 +480,75 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       if (showMention && mentionSuggestions.length > 0 || showEmojiPicker) {
         return;
       }
+      
+      // Check if we're inside a list
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let currentNode = range.startContainer;
+        
+        // Find the list item parent
+        while (currentNode && currentNode.nodeType === Node.TEXT_NODE) {
+          currentNode = currentNode.parentNode;
+        }
+        
+        // Check if we're inside a list item
+        if (currentNode && (currentNode.nodeName === 'LI' || currentNode.closest('li'))) {
+          const listItem = currentNode.nodeName === 'LI' ? currentNode : currentNode.closest('li');
+          const list = listItem.parentNode;
+          
+          // If we're at the end of a list item, create a new one
+          if (range.startOffset === range.startContainer.length || 
+              range.startContainer.textContent.trim() === '') {
+            e.preventDefault();
+            
+            // Check if current list item is empty (just <br> or empty)
+            const listItemContent = listItem.textContent.trim();
+            if (listItemContent === '' || listItemContent === '\u00A0') {
+              // Empty list item - exit the list
+              const paragraph = document.createElement('p');
+              paragraph.innerHTML = '<br>';
+              
+              // Insert paragraph after the list
+              if (list.nextSibling) {
+                list.parentNode.insertBefore(paragraph, list.nextSibling);
+              } else {
+                list.parentNode.appendChild(paragraph);
+              }
+              
+              // Move cursor to new paragraph
+              const newRange = document.createRange();
+              newRange.setStart(paragraph, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            } else {
+              // Create new list item
+              const newLi = document.createElement('li');
+              newLi.innerHTML = '<br>';
+              
+              // Insert after current list item
+              if (listItem.nextSibling) {
+                list.insertBefore(newLi, listItem.nextSibling);
+              } else {
+                list.appendChild(newLi);
+              }
+              
+              // Move cursor to new list item
+              const newRange = document.createRange();
+              newRange.setStart(newLi, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+            
+            updateContent();
+            if (onChange) onChange(editorRef.current?.innerHTML || '');
+            return;
+          }
+        }
+      }
+      
       if (e.shiftKey) {
         e.preventDefault();
         document.execCommand('insertLineBreak'); // or 'insertHTML', '<br><br>'
@@ -544,15 +613,15 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
     }
-    // Ordered List: Ctrl+Shift+L (recommended)
+    // Ordered List: Ctrl+Shift+L or Ctrl+Shift+7
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'l' || e.key === '7')) {
       e.preventDefault();
       document.execCommand('insertOrderedList');
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
     }
-    // Unordered List: Ctrl+Shift+U (recommended)
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'u' || e.key === '8')) {
+    // Unordered List: Ctrl+Shift+O or Ctrl+Shift+8
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'o' || e.key === '8')) {
       e.preventDefault();
       document.execCommand('insertUnorderedList');
       updateContent();
