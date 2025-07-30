@@ -34,28 +34,101 @@ function getCaretCoordinates(editorRef) {
   return { top: 0, left: 0 };
 }
 
-function getOptimalEmojiPosition(editorRef, basePosition) {
+function getOptimalPopupPosition(editorRef, basePosition) {
   if (!editorRef?.current) return basePosition;
   
   const editorRect = editorRef.current.getBoundingClientRect();
-  const pickerWidth = 320; // Approximate width of emoji picker
-  const pickerHeight = 300; // Max height of emoji picker
+  const pickerWidth = 219; // Original width of emoji picker
+  const pickerHeight = 209; // Original height of emoji picker
   
   let { top, left } = basePosition;
   
-  // Check if picker overflows to the right
-  if (left + pickerWidth > editorRect.width) {
-    left = Math.max(10, editorRect.width - pickerWidth - 10);
-  }
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   
-  // Check if picker overflows to the bottom
-  if (top + pickerHeight > editorRect.height) {
+  // Get editor's position relative to viewport
+  const editorViewportLeft = editorRect.left;
+  const editorViewportTop = editorRect.top;
+  
+  // Calculate available space in all directions (including outside editor)
+  const spaceRight = viewportWidth - (editorViewportLeft + left + pickerWidth);
+  const spaceLeft = editorViewportLeft + left - pickerWidth;
+  const spaceBelow = viewportHeight - (editorViewportTop + top + pickerHeight);
+  const spaceAbove = editorViewportTop + top - pickerHeight;
+  
+  // Priority order: right, left, below, above
+  if (spaceRight >= 20) {
+    // Enough space on the right - keep current position
+    left = Math.max(10, left);
+  } else if (spaceLeft >= 20) {
+    // Try left side
+    left = Math.max(10, left - pickerWidth - 20);
+  } else if (spaceBelow >= 20) {
+    // Try below (can be outside editor)
+    top = Math.max(10, top + 20);
+    // Don't constrain left to editor width when going outside
+    left = Math.max(10, left);
+  } else if (spaceAbove >= 20) {
+    // Try above (can be outside editor)
     top = Math.max(10, top - pickerHeight - 20);
+    // Don't constrain left to editor width when going outside
+    left = Math.max(10, left);
+  } else {
+    // Fallback: try to position outside editor if possible
+    if (spaceBelow >= 0) {
+      // Position below editor
+      top = editorRect.height + 10;
+      left = Math.max(10, left);
+    } else if (spaceAbove >= 0) {
+      // Position above editor
+      top = -pickerHeight - 10;
+      left = Math.max(10, left);
+    } else {
+      // Last resort: center in editor
+      left = Math.max(10, (editorRect.width - pickerWidth) / 2);
+      top = Math.max(10, (editorRect.height - pickerHeight) / 2);
+    }
   }
   
-  // Check if picker overflows to the left
-  if (left < 0) {
-    left = 10;
+  // Only constrain to editor bounds if we're positioning inside editor
+  const isInsideEditor = top >= 0 && top + pickerHeight <= editorRect.height && 
+                        left >= 0 && left + pickerWidth <= editorRect.width;
+  
+  if (isInsideEditor) {
+    // Ensure picker stays within editor bounds only when inside
+    if (left + pickerWidth > editorRect.width) {
+      left = Math.max(10, editorRect.width - pickerWidth - 10);
+    }
+    
+    if (top + pickerHeight > editorRect.height) {
+      top = Math.max(10, editorRect.height - pickerHeight - 10);
+    }
+    
+    if (left < 0) {
+      left = 10;
+    }
+    
+    if (top < 0) {
+      top = 10;
+    }
+  } else {
+    // When outside editor, ensure it stays within viewport
+    if (left + pickerWidth > viewportWidth) {
+      left = viewportWidth - pickerWidth - 10;
+    }
+    
+    if (top + pickerHeight > viewportHeight) {
+      top = viewportHeight - pickerHeight - 10;
+    }
+    
+    if (left < 0) {
+      left = 10;
+    }
+    
+    if (top < 0) {
+      top = 10;
+    }
   }
   
   return { top, left };
@@ -98,6 +171,48 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiSearchQuery, setEmojiSearchQuery] = useState('');
   const [emojiPos, setEmojiPos] = useState({ top: 0, left: 0 });
+
+  // Handle click outside to close emoji picker and mention list
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside both editor and popups
+      const editorElement = editorRef.current;
+      const emojiPickerElement = document.querySelector('.tf-emoji-picker');
+      const mentionListElement = document.querySelector('.tf-mention-list');
+      
+      let shouldCloseEmoji = false;
+      let shouldCloseMention = false;
+      
+      if (showEmojiPicker) {
+        if (editorElement && !editorElement.contains(event.target) && 
+            emojiPickerElement && !emojiPickerElement.contains(event.target)) {
+          shouldCloseEmoji = true;
+        }
+      }
+      
+      if (showMention) {
+        if (editorElement && !editorElement.contains(event.target) && 
+            mentionListElement && !mentionListElement.contains(event.target)) {
+          shouldCloseMention = true;
+        }
+      }
+      
+      if (shouldCloseEmoji) {
+        setShowEmojiPicker(false);
+        setEmojiSearchQuery('');
+      }
+      
+      if (shouldCloseMention) {
+        setShowMention(false);
+        setMentionQuery('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker, showMention]);
 
   // Filter mention suggestions from passed data
   const mentionSuggestions = mentions.filter(u =>
@@ -149,7 +264,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (colonIdx !== -1 && (colonIdx === 0 || /\s/.test(text[colonIdx - 1]))) {
       const query = text.slice(colonIdx + 1);
       const basePosition = getCaretCoordinates(editorRef);
-      const optimalPosition = getOptimalEmojiPosition(editorRef, basePosition);
+      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
       setShowEmojiPicker(true);
       setEmojiSearchQuery(query);
       setEmojiPos(optimalPosition);
@@ -163,7 +278,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (atIdx !== -1) {
       setShowMention(true);
       setMentionQuery(text.slice(atIdx + 1));
-      setMentionPos(getCaretCoordinates(editorRef));
+      const basePosition = getCaretCoordinates(editorRef);
+      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
+      setMentionPos(optimalPosition);
     } else {
       setShowMention(false);
       setMentionQuery('');
@@ -240,7 +357,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     // If called from toolbar button, show emoji picker
     if (fromToolbar) {
       const basePosition = getCaretCoordinates(editorRef);
-      const optimalPosition = getOptimalEmojiPosition(editorRef, basePosition);
+      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
       setShowEmojiPicker(true);
       setEmojiSearchQuery('');
       setEmojiPos(optimalPosition);

@@ -141,12 +141,21 @@ export default function EmojiPicker({
       style={{
         position: 'absolute',
         top: `${position.top}px`,
-        left: `${position.left + 20}px`,
+        left: `${position.left}px`,
         zIndex: 1000,
         maxHeight: '300px',
         overflowY: 'auto'
       }}
     >
+      <div className="tf-emoji-picker-header">
+        <button 
+          className="tf-emoji-close-btn"
+          onClick={() => onSelect('')}
+          title="Close emoji picker"
+        >
+          ×
+        </button>
+      </div>
       {searchQuery ? (
         <div className="tf-emoji-category">
           <h4 className="tf-emoji-category-title">Search results for "{searchQuery}"</h4>

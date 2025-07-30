@@ -4,6 +4,10 @@
 - **Production ready:** All major bugs fixed, UX polished
 - **Enhanced Emoji Picker:** Type `:` in editor to trigger emoji search, keyboard navigation with arrow keys, auto-scroll, recently used emojis, and category organization
 - **Mention dropdown:** Keyboard navigation auto-scrolls, dark/light theme highlight, visible text always
+- **Emoji/Mention popup closes on outside click:** Emoji picker and mention list now close automatically when you click outside the editor or popup.
+- **Emoji picker close button:** Emoji picker now has a close (×) button in the top-right corner.
+- **Popup positioning:** Emoji/mention list will open outside the editor (above or below) if there isn’t enough space inside, preventing overlap with text.
+- **No fallback emoji rendering:** Only native emoji rendering is used; fallback logic for unsupported emojis has been removed.
 - **Media skeleton loader:** Shows animated skeleton while uploading/inserting images/videos
 - **Unified media handling:** Paste, drag-and-drop, and toolbar all use the same upload logic
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
@@ -41,7 +45,7 @@ A minimal, modular, and customizable React rich text editor component with:
 - **Real-time search** as you type after `:` (e.g., `:smile`, `:heart`, `:food`)
 - **Keyboard navigation** with arrow keys (↑↓←→) and Enter to select
 - **Auto-scroll** keeps selected emoji visible during navigation
-- **Escape key** to close emoji picker
+- **Click outside or close button** to close emoji picker
 
 ### Emoji Categories & Recently Used
 - **Recently used emojis** appear at the top for quick access
@@ -52,7 +56,7 @@ A minimal, modular, and customizable React rich text editor component with:
 ### Keyboard Navigation
 - **Arrow keys** for grid navigation (up/down for rows, left/right for columns)
 - **Enter** to select highlighted emoji
-- **Escape** to close picker
+- **Click outside or close button** to close picker
 - **Auto-scroll** follows your navigation smoothly
 - **Mouse hover** also updates selection
 
@@ -207,6 +211,10 @@ The editor now automatically positions the cursor in the most logical place afte
 - **Formatting:** Bold, Italic, Underline, Strikethrough, Blockquote, Lists
 - **@Mention:** User list with profile pic/initials, keyboard navigation, auto-scroll
 - **Enhanced Emoji Picker:** Type `:` to search, keyboard navigation, recently used, categories, auto-scroll
+- **Popup closes on outside click:** Emoji picker and mention list close when clicking outside
+- **Emoji picker close button:** Manual close (×) button in emoji picker
+- **Popup positioning:** Picker/list opens outside editor if needed, never overlaps text
+- **Native emoji rendering only:** No fallback for unsupported emojis
 - **Media:** Render images/videos (upload logic is up to you), **click to fullscreen preview**
 - **Media Skeleton:** Animated skeleton loader while uploading/inserting
 - **Code Block:** Insert code blocks via toolbar or Ctrl+K, auto-format on paste, text wrapping, monospace font, **auto new line after code block with focus inside code block**
