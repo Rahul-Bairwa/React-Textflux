@@ -39,9 +39,7 @@ const icons = {
   code: (
     <svg width="20" height="20" fill="none" viewBox="0 0 48 48"><path fill="currentColor" d="M6 12.25A6.25 6.25 0 0 1 12.25 6h23.5A6.25 6.25 0 0 1 42 12.25v23.5A6.25 6.25 0 0 1 35.75 42h-23.5A6.25 6.25 0 0 1 6 35.75zm6.25-3.75a3.75 3.75 0 0 0-3.75 3.75v23.5a3.75 3.75 0 0 0 3.75 3.75h23.5a3.75 3.75 0 0 0 3.75-3.75v-23.5a3.75 3.75 0 0 0-3.75-3.75zm8.634 6.866a1.25 1.25 0 0 1 0 1.768L14.018 24l6.866 6.866a1.25 1.25 0 0 1-1.768 1.768l-7.75-7.75a1.25 1.25 0 0 1 0-1.768l7.75-7.75a1.25 1.25 0 0 1 1.768 0m8 0a1.25 1.25 0 0 0-1.768 1.768L33.982 24l-6.866 6.866a1.25 1.25 0 0 0 1.768 1.768l7.75-7.75a1.25 1.25 0 0 0 0-1.768z" /></svg>
   ),
-  file: (
-    <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M4 4a2 2 0 0 1 2-2h4.586a2 2 0 0 1 1.414.586l3.414 3.414A2 2 0 0 1 16 7.414V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4z" stroke="currentColor" strokeWidth="1.5" /><path d="M10 2v4a2 2 0 0 0 2 2h4" stroke="currentColor" strokeWidth="1.5" /></svg>
-  ),
+
 };
 
 const tooltips = {
@@ -57,13 +55,12 @@ const tooltips = {
   emoji: { label: 'Emoji', shortcut: 'type : to search' },
   clear: { label: 'Clear Formatting', shortcut: '' },
   code: { label: 'Code Block', shortcut: 'Ctrl+K' },
-  file: { label: 'Insert File', shortcut: '' },
+
 };
 
 export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, onInsertCodeBlock, isFocused, isCodeBlockActive }) {
   const imgInput = useRef();
   const vidInput = useRef();
-  const fileInput = useRef();
   const [, setRerender] = useState(0);
 
   const handleFile = (type) => {
@@ -73,8 +70,6 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
           imgInput.current.click();
         } else if (type === 'video' && vidInput.current) {
           vidInput.current.click();
-        } else if (type === 'file' && fileInput.current) {
-          fileInput.current.click();
         }
       }, 10);
     } catch (error) {
@@ -85,7 +80,7 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
   return (
     <div className={`tf-toolbar ${theme === 'dark' ? 'tf-dark' : ''}`}>
       {Object.entries(icons).map(([key, icon]) => {
-        if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear' || key === 'code' || key === 'file') return null;
+        if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear' || key === 'code') return null;
         let active = false;
         if (isFocused) {
           if (key === 'bold' || key === 'italic' || key === 'underline' || key === 'strikethrough') {
@@ -166,26 +161,7 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
           }
         }}
       />
-      <Tooltip label={tooltips.file.label} shortcut={tooltips.file.shortcut} theme={theme}>
-        <button title="Insert File" className="tf-toolbar-btn" tabIndex={0} onClick={e => { e.preventDefault(); e.stopPropagation(); handleFile('file'); }}>{icons.file}</button>
-      </Tooltip>
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.zip,.rar,.ppk,.pem,.exe"
-        ref={fileInput}
-        className="tf-file-input"
-        onChange={e => {
-          try {
-            if (e.target.files && e.target.files[0]) {
-              onInsertMedia(e.target.files[0], 'file');
-            }
-            e.target.value = '';
-          } catch (error) {
-            console.error('Error handling file:', error);
-            e.target.value = '';
-          }
-        }}
-      />
+
       <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
         <button title="Emoji (type : to search)" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertEmoji('', true); }}>{icons.emoji}</button>
       </Tooltip>

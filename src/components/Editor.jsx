@@ -3,7 +3,6 @@ import Toolbar from './Toolbar';
 import MentionList from './MentionList';
 import EmojiPicker from './EmojiPicker';
 import MediaBlock from './MediaBlock';
-import FileBlock from './FileBlock';
 import useEditor from '../hooks/useEditor';
 import { isCodeBlockActive } from '../utils/formatting';
 import { EMOJI_LIST } from './emojiData';
@@ -157,8 +156,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
   const [media, setMedia] = useState([]);
   const [mediaLoading, setMediaLoading] = useState([]); // array of {id, type}
-  const [files, setFiles] = useState([]);
-  const [fileLoading, setFileLoading] = useState([]); // array of {id, filename}
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [toolbarRerender, setToolbarRerender] = useState(0);
@@ -481,7 +478,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
   };
 
-  // Handle drag-and-drop media and files
+  // Handle drag-and-drop media
   const handleDrop = async e => {
     e.preventDefault();
     setIsDragOver(false);
@@ -489,9 +486,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     for (const file of droppedFiles) {
       if (file.type.startsWith('image') || file.type.startsWith('video')) {
         await handleInsertMedia(file, file.type);
-      } else {
-        // Handle document files
-        await handleInsertFile(file);
       }
     }
   };
@@ -508,47 +502,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Helper to generate unique id for skeleton
   const genId = () => '_' + Math.random().toString(36).slice(2, 10);
 
-  // Insert file from toolbar/paste/drop
-  const handleInsertFile = async (file) => {
-    try {
-      if (!file) {
-        console.error('No file provided to handleInsertFile');
-        return;
-      }
-      const id = genId();
-      setFileLoading(m => [...m, { id, filename: file.name }]);
-      let url = '';
-      if (onMediaUpload) {
-        const result = await onMediaUpload(file, 'file');
-        url = result?.url;
-      } else {
-        url = await fileToBase64(file);
-      }
-      setFileLoading(m => m.filter(item => item.id !== id));
-      if (url) {
-        setFiles(m => {
-          const newFiles = [...m, { 
-            src: url, 
-            filename: file.name, 
-            fileSize: file.size,
-            type: file.type 
-          }];
-          // Move cursor after file insertion
-          setTimeout(() => {
-            if (onChange && editorRef.current) {
-              onChange(editorRef.current.innerHTML);
-            }
-            // Move cursor to end of editor
-            moveCursorToEnd(editorRef);
-          }, 0);
-          return newFiles;
-        });
-      }
-    } catch (error) {
-      console.error('Error in handleInsertFile:', error);
-      setFileLoading(m => m.filter(item => item.filename !== file.name));
-    }
-  };
+
 
   // Insert media from toolbar/paste/drop
   const handleInsertMedia = async (file, type) => {
@@ -587,7 +541,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
   };
 
-  // Render media blocks, file blocks and skeletons with newline placeholders
+  // Render media blocks and skeletons with newline placeholders
   const renderMedia = () => (
     <>
       {media.map((m, i) => (
@@ -596,43 +550,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           <div><br /></div>
         </React.Fragment>
       ))}
-      {files.map((f, i) => (
-        <React.Fragment key={`file-${i}`}>
-          <FileBlock 
-            src={f.src} 
-            filename={f.filename} 
-            fileSize={f.fileSize}
-            onDownload={(src, filename) => {
-              const link = document.createElement('a');
-              link.href = src;
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-          />
-          <div><br /></div>
-        </React.Fragment>
-      ))}
       {mediaLoading.map((item) => (
         <React.Fragment key={item.id}>
           <div className={`tf-media-block tf-media-skeleton tf-media-skeleton-${item.type.startsWith('image') ? 'img' : 'video'}`}>
             <div className="tf-skeleton-anim" style={{ width: '100%', height: item.type.startsWith('image') ? 180 : 180, borderRadius: 6 }} />
-          </div>
-          <div><br /></div>
-        </React.Fragment>
-      ))}
-      {fileLoading.map((item) => (
-        <React.Fragment key={item.id}>
-          <div className="tf-file-block tf-file-skeleton">
-            <div className="tf-skeleton-anim" style={{ 
-              width: '100%', 
-              height: 60, 
-              borderRadius: 8,
-              background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
-              backgroundSize: '200% 100%',
-              animation: 'tf-skeleton-loading 1.5s infinite'
-            }} />
           </div>
           <div><br /></div>
         </React.Fragment>
@@ -906,7 +827,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
 
-  // Handle paste for images, files and code
+  // Handle paste for images and code
   const handlePaste = async (e) => {
     if (!e.clipboardData) return;
     const items = Array.from(e.clipboardData.items);
@@ -918,10 +839,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         if (file) {
           if (file.type.startsWith('image') || file.type.startsWith('video')) {
             await handleInsertMedia(file, file.type);
-          } else {
-            await handleInsertFile(file);
+            handled = true;
           }
-          handled = true;
         }
       }
     }
@@ -1172,13 +1091,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       <Toolbar
         key={toolbarRerender}
         theme={theme}
-        onInsertMedia={(file, type) => {
-          if (type === 'file') {
-            handleInsertFile(file);
-          } else {
-            handleInsertMedia(file, type);
-          }
-        }}
+        onInsertMedia={handleInsertMedia}
         onInsertEmoji={handleInsertEmoji}
         onClearFormatting={handleClearFormatting}
         onInsertCodeBlock={handleInsertCodeBlock}

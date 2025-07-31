@@ -27,7 +27,7 @@ A minimal, modular, and customizable React rich text editor component with:
 - @mention with profile pic/initials
 - **Enhanced Emoji Picker:** Type `:` to search emojis, keyboard navigation, recently used, categories
 - Media rendering (image/video) with fullscreen preview
-- **Document file uploads** (PDF, Excel, Word, CSV, etc.) with drag & drop support
+
 - **Code block support with text wrapping and monospace font**
 - Dark/light theme support
 - Custom upload logic via callback
@@ -81,34 +81,6 @@ Type in editor: ":food" → Shows all food emojis
 
 > **Tip:** After inserting a code block, just start typing your code. To continue writing outside the code block, use the arrow keys or click on the new line below the code block.
 
----
-
-## Document File Uploads
-
-### Supported File Types
-- **PDF Documents** (.pdf)
-- **Microsoft Office** (.doc, .docx, .xls, .xlsx, .ppt, .pptx)
-- **Text Files** (.txt)
-- **Data Files** (.csv)
-- **Archives** (.zip, .rar)
-
-### Upload Methods
-- **Drag & Drop:** Simply drag any supported file into the editor
-- **Toolbar Button:** Click the file icon (📎) in the toolbar
-- **Paste:** Copy a file and paste it into the editor
-
-### File Display
-- **File type icons** with appropriate colors for each file type
-- **File name** with truncation for long names
-- **File size** displayed in human-readable format
-- **Download functionality** - click any file to download it
-- **Hover effects** with subtle animations
-
-### File Management
-- Files are converted to base64 for storage (or use your custom `onMediaUpload` handler)
-- Each file shows a download button (⬇️) for easy access
-- File blocks are responsive and work on all screen sizes
-- Dark theme support for file blocks
 
 ---
 
