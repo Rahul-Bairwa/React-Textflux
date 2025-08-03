@@ -60,6 +60,7 @@ body {
   overflow: visible;
   border: 1px solid var(--border-color);
   position: relative;
+  font-family: Arial, sans-serif !important;
 }
 
 /* Toolbar Styles */

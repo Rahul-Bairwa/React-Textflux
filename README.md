@@ -43,6 +43,8 @@ A minimal, modular, and customizable React rich text editor component with:
 ### Trigger Emoji Search
 - **Type `:` in editor** to open emoji picker with search functionality
 - **Real-time search** as you type after `:` (e.g., `:smile`, `:heart`, `:food`)
+- **Smart line break handling:** Emoji picker works correctly on new lines (after pressing Enter)
+- **Prevents emoticon interference:** Typing `:` followed by `-` (like `:-)`) won't trigger emoji picker
 - **Keyboard navigation** with arrow keys (↑↓←→) and Enter to select
 - **Auto-scroll** keeps selected emoji visible during navigation
 - **Click outside or close button** to close emoji picker
@@ -65,6 +67,8 @@ A minimal, modular, and customizable React rich text editor component with:
 Type in editor: ":smile" → Shows all smile-related emojis
 Type in editor: ":heart" → Shows all heart/love emojis  
 Type in editor: ":food" → Shows all food emojis
+Type in editor: ":-)" → Does NOT trigger emoji picker (emoticon)
+Type in editor: ":-(" → Does NOT trigger emoji picker (emoticon)
 ```
 
 ---
@@ -183,6 +187,8 @@ The editor now automatically positions the cursor in the most logical place afte
 - **Formatting:** Bold, Italic, Underline, Strikethrough, Blockquote, Lists
 - **@Mention:** User list with profile pic/initials, keyboard navigation, auto-scroll
 - **Enhanced Emoji Picker:** Type `:` to search, keyboard navigation, recently used, categories, auto-scroll
+- **Smart line break handling:** Emoji picker works correctly on new lines (after pressing Enter)
+- **Prevents emoticon interference:** Typing `:` followed by `-` (like `:-)`) won't trigger emoji picker
 - **Popup closes on outside click:** Emoji picker and mention list close when clicking outside
 - **Emoji picker close button:** Manual close (×) button in emoji picker
 - **Popup positioning:** Picker/list opens outside editor if needed, never overlaps text

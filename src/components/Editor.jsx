@@ -251,20 +251,36 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
     while (curr) {
       if (curr.nodeType === Node.TEXT_NODE) text = curr.textContent + text;
-      else if (curr.nodeType === Node.ELEMENT_NODE && !curr.classList.contains('tf-mention'))
-        text = curr.textContent + text;
+      else if (curr.nodeType === Node.ELEMENT_NODE && !curr.classList.contains('tf-mention')) {
+        // Handle <br> tags as line breaks
+        if (curr.nodeName === 'BR') {
+          text = '\n' + text;
+        } else {
+          text = curr.textContent + text;
+        }
+      }
       curr = curr.previousSibling;
     }
 
     // Emoji trigger - show at cursor position
-    const colonIdx = text.lastIndexOf(':');
-    if (colonIdx !== -1 && (colonIdx === 0 || /\s/.test(text[colonIdx - 1]))) {
-      const query = text.slice(colonIdx + 1);
-      const basePosition = getCaretCoordinates(editorRef);
-      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
-      setShowEmojiPicker(true);
-      setEmojiSearchQuery(query);
-      setEmojiPos(optimalPosition);
+    // Find the colon that's part of the current word being typed
+    const words = text.split(/[\s\n]/);
+    const currentWord = words[words.length - 1];
+    
+    if (currentWord && currentWord.startsWith(':')) {
+      const query = currentWord.slice(1); // Remove the colon
+      
+      // Check if colon is followed by hyphen to prevent emoji picker
+      if (query.startsWith('-')) {
+        setShowEmojiPicker(false);
+        setEmojiSearchQuery('');
+      } else {
+        const basePosition = getCaretCoordinates(editorRef);
+        const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
+        setShowEmojiPicker(true);
+        setEmojiSearchQuery(query);
+        setEmojiPos(optimalPosition);
+      }
     } else {
       setShowEmojiPicker(false);
       setEmojiSearchQuery('');
