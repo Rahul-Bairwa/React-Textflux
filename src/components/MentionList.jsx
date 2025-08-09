@@ -18,7 +18,7 @@ export default function MentionList({ suggestions, onSelect, position }) {
       } else if (e.key === 'ArrowUp') {
         setSelectedIdx(idx => (idx - 1 + suggestions.length) % suggestions.length);
         e.preventDefault();
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
         onSelect(suggestions[selectedIdx]);
         e.preventDefault();
       }

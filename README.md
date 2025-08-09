@@ -12,7 +12,7 @@
 - **Unified media handling:** Paste, drag-and-drop, and toolbar all use the same upload logic
 - **Accessibility:** All dropdowns and toolbars are keyboard accessible
 - **CSS isolation:** All classes prefixed with `tf-` (no conflicts)
-- **Media fullscreen control:** You can now control whether images/videos are clickable for fullscreen preview using the `mediaFullscreen` prop on the Editor component.
+- **Media fullscreen reliability improved:** Fullscreen preview now works for all images/videos, even if they are nested or dynamically loaded. Event listeners are always correctly attached for robust fullscreen handling.
 - **Smart cursor positioning:** Cursor automatically moves to the end after inserting media, mentions, or emojis
 - **Improved button reliability:** Fixed image/video insert buttons that sometimes didn't work
 - **Enhanced error handling:** Better error handling for file operations and media uploads
@@ -165,7 +165,7 @@ function App() {
 ## Media Fullscreen Preview
 
 - **Media Fullscreen Preview:** Click any image or video in the editor to open a fullscreen overlay preview. Click the close (×) button or outside the media to exit preview.
-- **Works with all media:** Both newly inserted and existing media (from database, etc.) are clickable for fullscreen preview when `mediaFullscreen={true}` is enabled.
+- **Works with all media:** Both newly inserted and existing media (from database, etc.) are clickable for fullscreen preview when `mediaFullscreen={true}` is enabled. The editor now ensures fullscreen preview works for all images/videos, even if they are deeply nested or loaded after initial render.
 
 > **Tip:** You can customize the fullscreen overlay style by editing the relevant CSS in the source.
 
@@ -297,3 +297,7 @@ The editor now automatically positions the cursor in the most logical place afte
 ### [plugin:vite:import-analysis] Failed to resolve entry for package
 - Make sure your `package.json` has correct `main`, `module`, and `exports` fields
 - Clear node_modules and reinstall: `rm -rf node_modules package-lock.json && npm install`
+
+### Image/Video Not Opening in Fullscreen
+- **Fixed in latest version:** Fullscreen preview now works for all images/videos, even if they are nested inside other elements or loaded dynamically. The editor robustly attaches event listeners to all media elements after any content change.
+- If you still face issues, ensure you are using the latest version and check for JavaScript errors in the console.
