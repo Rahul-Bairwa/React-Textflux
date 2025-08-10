@@ -19,6 +19,8 @@
 - **Focus management:** Improved focus handling between editor and toolbar
 - **Existing media support:** All existing images/videos in editor content are automatically clickable for fullscreen preview
 - **Code block UX:** When you insert a code block, a new line is automatically added after it, but focus stays inside the code block so you can start typing code immediately. Move out of the code block with arrow keys or mouse to continue writing.
+ - **Precise media click target:** Only the actual image/video is clickable for fullscreen; surrounding margins are not clickable.
+ - **Robust fullscreen binding:** Existing media always get a click listener even if classes are pre-applied in persisted HTML, fixing rare cases where the first media wouldn't open fullscreen in production.
 
 ---
 
@@ -165,7 +167,8 @@ function App() {
 ## Media Fullscreen Preview
 
 - **Media Fullscreen Preview:** Click any image or video in the editor to open a fullscreen overlay preview. Click the close (×) button or outside the media to exit preview.
-- **Works with all media:** Both newly inserted and existing media (from database, etc.) are clickable for fullscreen preview when `mediaFullscreen={true}` is enabled. The editor now ensures fullscreen preview works for all images/videos, even if they are deeply nested or loaded after initial render.
+- **Works with all media:** Both newly inserted and existing media (from database, etc.) are clickable for fullscreen preview when `mediaFullscreen={true}` is enabled.
+ - **Click area:** Only the media itself (the `img`/`video`) is clickable; centered side margins are not, preventing accidental opens when you click outside the media.
 
 > **Tip:** You can customize the fullscreen overlay style by editing the relevant CSS in the source.
 

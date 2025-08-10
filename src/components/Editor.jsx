@@ -581,12 +581,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const handleInput = () => {
     updateContent();
     if (onChange) onChange(editorRef.current?.innerHTML || '');
-    // Process media after content changes if fullscreen is enabled
-    if (mediaFullscreen) {
-      setTimeout(() => {
-        processExistingMedia();
-      }, 50);
-    }
   };
 
   // Handle copy event to preserve hyperlink formatting
@@ -941,14 +935,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       updateContent();
       // Process existing media for fullscreen functionality
       if (mediaFullscreen) {
-        // Process immediately and after a delay to ensure all content is loaded
         processExistingMedia();
-        setTimeout(() => {
-          processExistingMedia();
-        }, 100);
-        setTimeout(() => {
-          processExistingMedia();
-        }, 300);
       }
     }
   }, [value, mediaFullscreen]);
@@ -956,15 +943,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   // Process existing media when component mounts or mediaFullscreen changes
   React.useEffect(() => {
     if (mediaFullscreen && editorRef.current) {
-      // Process immediately and also after a delay to ensure content is loaded
-      processExistingMedia();
+      // Small delay to ensure content is loaded
       setTimeout(() => {
         processExistingMedia();
       }, 100);
-      // Also process after content changes
-      setTimeout(() => {
-        processExistingMedia();
-      }, 500);
     }
   }, [mediaFullscreen]);
 
@@ -977,32 +959,36 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
     // Process images
     images.forEach(img => {
-      // Remove existing click listeners to prevent duplicates
-      const newImg = img.cloneNode(true);
-      img.parentNode.replaceChild(newImg, img);
-      
-      newImg.classList.add('tf-processed-media');
-      newImg.style.cursor = 'pointer';
-      newImg.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showMediaFullscreen(newImg.src, 'image');
-      });
+      if (img.dataset.tfMediaListenerAttached !== 'true') {
+        if (!img.classList.contains('tf-processed-media')) {
+          img.classList.add('tf-processed-media');
+        }
+        img.style.cursor = 'pointer';
+        const onClick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showMediaFullscreen(img.src, 'image');
+        };
+        img.addEventListener('click', onClick);
+        img.dataset.tfMediaListenerAttached = 'true';
+      }
     });
 
     // Process videos
     videos.forEach(video => {
-      // Remove existing click listeners to prevent duplicates
-      const newVideo = video.cloneNode(true);
-      video.parentNode.replaceChild(newVideo, video);
-      
-      newVideo.classList.add('tf-processed-media');
-      newVideo.style.cursor = 'pointer';
-      newVideo.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showMediaFullscreen(newVideo.src, 'video');
-      });
+      if (video.dataset.tfMediaListenerAttached !== 'true') {
+        if (!video.classList.contains('tf-processed-media')) {
+          video.classList.add('tf-processed-media');
+        }
+        video.style.cursor = 'pointer';
+        const onClick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showMediaFullscreen(video.src, 'video');
+        };
+        video.addEventListener('click', onClick);
+        video.dataset.tfMediaListenerAttached = 'true';
+      }
     });
   };
 

@@ -83,15 +83,21 @@ export default function MediaBlock({ src, type, mediaFullscreen }) {
 
   return (
     <>
-      <div
-        className="tf-media-block"
-        style={{ cursor: mediaFullscreen ? 'pointer' : 'default' }}
-        onClick={mediaFullscreen ? handleOpen : undefined}
-      >
+      <div className="tf-media-block">
         {type.startsWith('image') ? (
-          <img src={src} alt="media" style={{ display: 'block' }} />
+          <img
+            src={src}
+            alt="media"
+            style={{ display: 'block', cursor: mediaFullscreen ? 'pointer' : 'default' }}
+            onClick={mediaFullscreen ? handleOpen : undefined}
+          />
         ) : type.startsWith('video') ? (
-          <video src={src} controls style={{ display: 'block' }} />
+          <video
+            src={src}
+            controls
+            style={{ display: 'block', cursor: mediaFullscreen ? 'pointer' : 'default' }}
+            onClick={mediaFullscreen ? handleOpen : undefined}
+          />
         ) : null}
       </div>
       {fullscreenOverlay}
