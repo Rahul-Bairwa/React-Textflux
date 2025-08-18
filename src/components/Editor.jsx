@@ -149,6 +149,59 @@ function moveCursorToEnd(editorRef) {
   editor.focus();
 }
 
+// Get caret character offset within an element (based on text content)
+function getCaretOffset(editorElement) {
+  try {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    if (!editorElement.contains(range.startContainer)) return null;
+    const preRange = document.createRange();
+    preRange.selectNodeContents(editorElement);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    return preRange.toString().length;
+  } catch {
+    return null;
+  }
+}
+
+// Restore caret at a given character offset within element
+function restoreCaretAtOffset(editorElement, targetOffset) {
+  try {
+    const walker = document.createTreeWalker(
+      editorElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    let currentNode = walker.nextNode();
+    let remaining = typeof targetOffset === 'number' ? targetOffset : 0;
+    while (currentNode) {
+      const textLength = currentNode.nodeValue?.length || 0;
+      if (remaining <= textLength) {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.setStart(currentNode, Math.max(0, remaining));
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return true;
+      }
+      remaining -= textLength;
+      currentNode = walker.nextNode();
+    }
+    // Fallback: move to end
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(editorElement);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, onEnter, mediaFullscreen = false }) {
   const { editorRef, html, updateContent } = useEditor();
   const [showMention, setShowMention] = useState(false);
@@ -930,9 +983,20 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   // Sync value prop to editor content
   React.useEffect(() => {
-    if (editorRef.current && typeof value === 'string' && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
+    const editorEl = editorRef.current;
+    if (editorEl && typeof value === 'string' && editorEl.innerHTML !== value) {
+      const hadFocus = document.activeElement === editorEl;
+      const savedOffset = hadFocus ? getCaretOffset(editorEl) : null;
+
+      editorEl.innerHTML = value;
       updateContent();
+
+      if (hadFocus && savedOffset != null) {
+        // Restore caret as close as possible to previous position
+        restoreCaretAtOffset(editorEl, savedOffset);
+        editorEl.focus();
+      }
+
       // Process existing media for fullscreen functionality
       if (mediaFullscreen) {
         processExistingMedia();
