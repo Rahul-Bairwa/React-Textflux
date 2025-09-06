@@ -664,6 +664,121 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   };
 
   const handleKeyDown = (e) => {
+    // Handle backspace and delete for mentions and links
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        // Helper function to check if element is mention or link
+        const isMentionOrLink = (element) => {
+          return element && element.classList && (
+            element.classList.contains('tf-mention') || 
+            element.classList.contains('tf-link')
+          );
+        };
+        
+        // Helper function to check if element is whitespace (including &nbsp;)
+        const isWhitespace = (element) => {
+          if (!element) return false;
+          if (element.nodeType === Node.TEXT_NODE) {
+            return element.textContent.trim() === '' || element.textContent === '\u00A0';
+          }
+          return false;
+        };
+        
+        // Helper function to find and delete mention/link
+        const findAndDeleteMentionOrLink = () => {
+          let currentNode = range.startContainer;
+          
+          if (e.key === 'Backspace') {
+            // Check if we're inside a mention/link element
+            let parentNode = currentNode;
+            while (parentNode && parentNode !== editorRef.current) {
+              if (isMentionOrLink(parentNode)) {
+                return parentNode;
+              }
+              parentNode = parentNode.parentNode;
+            }
+            
+            // Check if cursor is at the beginning of a text node
+            if (range.startOffset === 0 && currentNode.nodeType === Node.TEXT_NODE) {
+              // Look for mention/link in previous siblings, skipping whitespace
+              let prevNode = currentNode.previousSibling;
+              while (prevNode) {
+                if (isMentionOrLink(prevNode)) {
+                  return prevNode;
+                }
+                // Skip whitespace nodes
+                if (!isWhitespace(prevNode)) {
+                  break;
+                }
+                prevNode = prevNode.previousSibling;
+              }
+            }
+            
+            // Special case: if cursor is in a whitespace node, look for mention/link before it
+            if (isWhitespace(currentNode) && range.startOffset === 0) {
+              let prevNode = currentNode.previousSibling;
+              while (prevNode) {
+                if (isMentionOrLink(prevNode)) {
+                  return prevNode;
+                }
+                prevNode = prevNode.previousSibling;
+              }
+            }
+          } else if (e.key === 'Delete') {
+            // Check if we're inside a mention/link element
+            let parentNode = currentNode;
+            while (parentNode && parentNode !== editorRef.current) {
+              if (isMentionOrLink(parentNode)) {
+                return parentNode;
+              }
+              parentNode = parentNode.parentNode;
+            }
+            
+            // Check if cursor is at the end of a text node
+            if (range.startOffset === currentNode.textContent.length && currentNode.nodeType === Node.TEXT_NODE) {
+              // Look for mention/link in next siblings, skipping whitespace
+              let nextNode = currentNode.nextSibling;
+              while (nextNode) {
+                if (isMentionOrLink(nextNode)) {
+                  return nextNode;
+                }
+                // Skip whitespace nodes
+                if (!isWhitespace(nextNode)) {
+                  break;
+                }
+                nextNode = nextNode.nextSibling;
+              }
+            }
+            
+            // Special case: if cursor is in a whitespace node, look for mention/link after it
+            if (isWhitespace(currentNode) && range.startOffset === currentNode.textContent.length) {
+              let nextNode = currentNode.nextSibling;
+              while (nextNode) {
+                if (isMentionOrLink(nextNode)) {
+                  return nextNode;
+                }
+                nextNode = nextNode.nextSibling;
+              }
+            }
+          }
+          
+          return null;
+        };
+        
+        const elementToDelete = findAndDeleteMentionOrLink();
+        if (elementToDelete) {
+          e.preventDefault();
+          elementToDelete.remove();
+          updateContent();
+          if (onChange) onChange(editorRef.current?.innerHTML || '');
+          return;
+        }
+      }
+    }
+
     if (e.key === 'Enter') {
       if (showMention && mentionSuggestions.length > 0 || showEmojiPicker) {
         return;
@@ -1144,6 +1259,174 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [editorRef]);
+
+  // Add specific event listener for mention and link deletion
+  React.useEffect(() => {
+    const handleMentionLinkDeletion = (e) => {
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          let currentNode = range.startContainer;
+          
+          // Helper function to check if element is mention or link
+          const isMentionOrLink = (element) => {
+            return element && element.classList && (
+              element.classList.contains('tf-mention') || 
+              element.classList.contains('tf-link')
+            );
+          };
+          
+          // Helper function to check if element is whitespace (including &nbsp;)
+          const isWhitespace = (element) => {
+            if (!element) return false;
+            if (element.nodeType === Node.TEXT_NODE) {
+              return element.textContent.trim() === '' || element.textContent === '\u00A0';
+            }
+            return false;
+          };
+          
+          if (e.key === 'Backspace') {
+            // Check if we're inside a mention/link element
+            let parentNode = currentNode;
+            while (parentNode && parentNode !== editorRef.current) {
+              if (isMentionOrLink(parentNode)) {
+                e.preventDefault();
+                e.stopPropagation();
+                parentNode.remove();
+                updateContent();
+                if (onChange) onChange(editorRef.current?.innerHTML || '');
+                return;
+              }
+              parentNode = parentNode.parentNode;
+            }
+            
+            // Check if cursor is at the beginning of a text node
+            if (range.startOffset === 0 && currentNode.nodeType === Node.TEXT_NODE) {
+              // Look for mention/link in previous siblings, skipping whitespace
+              let prevNode = currentNode.previousSibling;
+              while (prevNode) {
+                if (isMentionOrLink(prevNode)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  prevNode.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                // Skip whitespace nodes
+                if (!isWhitespace(prevNode)) {
+                  break;
+                }
+                prevNode = prevNode.previousSibling;
+              }
+            }
+            
+            // Special case: if cursor is in a whitespace node, look for mention/link before it
+            if (isWhitespace(currentNode) && range.startOffset === 0) {
+              let prevNode = currentNode.previousSibling;
+              while (prevNode) {
+                if (isMentionOrLink(prevNode)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  prevNode.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                prevNode = prevNode.previousSibling;
+              }
+            }
+          } else if (e.key === 'Delete') {
+            // Check if we're inside a mention/link element
+            let parentNode = currentNode;
+            while (parentNode && parentNode !== editorRef.current) {
+              if (isMentionOrLink(parentNode)) {
+                e.preventDefault();
+                e.stopPropagation();
+                parentNode.remove();
+                updateContent();
+                if (onChange) onChange(editorRef.current?.innerHTML || '');
+                return;
+              }
+              parentNode = parentNode.parentNode;
+            }
+            
+            // Check if cursor is at the end of a text node
+            if (range.startOffset === currentNode.textContent.length && currentNode.nodeType === Node.TEXT_NODE) {
+              // Look for mention/link in next siblings, skipping whitespace
+              let nextNode = currentNode.nextSibling;
+              while (nextNode) {
+                if (isMentionOrLink(nextNode)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  nextNode.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                // Skip whitespace nodes
+                if (!isWhitespace(nextNode)) {
+                  break;
+                }
+                nextNode = nextNode.nextSibling;
+              }
+            }
+            
+            // Special case: if cursor is in a whitespace node, look for mention/link after it
+            if (isWhitespace(currentNode) && range.startOffset === currentNode.textContent.length) {
+              let nextNode = currentNode.nextSibling;
+              while (nextNode) {
+                if (isMentionOrLink(nextNode)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  nextNode.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                nextNode = nextNode.nextSibling;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    if (editorRef.current) {
+      editorRef.current.addEventListener('keydown', handleMentionLinkDeletion, true);
+      return () => {
+        if (editorRef.current) {
+          editorRef.current.removeEventListener('keydown', handleMentionLinkDeletion, true);
+        }
+      };
+    }
+  }, [onChange]);
+
+  // Add click event listener to make mentions and links selectable for deletion
+  React.useEffect(() => {
+    const handleMentionLinkClick = (e) => {
+      const target = e.target;
+      if (target.classList && (target.classList.contains('tf-mention') || target.classList.contains('tf-link'))) {
+        // Select the entire mention/link element
+        const range = document.createRange();
+        range.selectNode(target);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    };
+
+    if (editorRef.current) {
+      editorRef.current.addEventListener('click', handleMentionLinkClick);
+      return () => {
+        if (editorRef.current) {
+          editorRef.current.removeEventListener('click', handleMentionLinkClick);
+        }
+      };
+    }
+  }, []);
+
 
   return (
     <div
