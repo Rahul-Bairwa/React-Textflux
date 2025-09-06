@@ -315,6 +315,61 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       curr = curr.previousSibling;
     }
 
+    // Auto-ordered list detection: Check if user typed "number. " pattern
+    const autoOrderedListPattern = /^(\d+)\.\s*$/;
+    const lines = text.split('\n');
+    const currentLine = lines[lines.length - 1];
+    
+    if (autoOrderedListPattern.test(currentLine)) {
+      // Check if we're not already in a list
+      let currentNode = range.startContainer;
+      while (currentNode && currentNode.nodeType !== Node.ELEMENT_NODE) {
+        currentNode = currentNode.parentNode;
+      }
+      
+      // Check if we're not already inside a list item
+      const isInList = currentNode && (
+        currentNode.nodeName === 'LI' || 
+        currentNode.closest('li') || 
+        currentNode.closest('ol') || 
+        currentNode.closest('ul')
+      );
+      
+      if (!isInList) {
+        // Create ordered list
+        const match = currentLine.match(autoOrderedListPattern);
+        const listNumber = match[1];
+        
+        // Remove the "number. " text
+        const textNode = range.startContainer;
+        if (textNode.nodeType === Node.TEXT_NODE) {
+          const newText = textNode.textContent.replace(/^\d+\.\s*/, '');
+          textNode.textContent = newText;
+          
+          // Create ordered list
+          const ol = document.createElement('ol');
+          const li = document.createElement('li');
+          li.innerHTML = '<br>';
+          ol.appendChild(li);
+          
+          // Insert the list before the current text node's parent
+          const parentNode = textNode.parentNode;
+          parentNode.insertBefore(ol, textNode);
+          
+          // Move cursor inside the list item
+          const newRange = document.createRange();
+          newRange.setStart(li, 0);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          
+          updateContent();
+          if (onChange) onChange(editorRef.current?.innerHTML || '');
+          return;
+        }
+      }
+    }
+
     // Emoji trigger - show at cursor position
     // Find the colon that's part of the current word being typed
     const words = text.split(/[\s\n]/);
