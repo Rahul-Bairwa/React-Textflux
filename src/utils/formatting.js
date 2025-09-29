@@ -23,7 +23,20 @@ export function isFormatActive(command, value = null) {
     return false;
   }
   if (command === 'insertOrderedList' || command === 'insertUnorderedList') {
-    return document.queryCommandState(command);
+    // Prefer a reliable DOM-based check for the nearest list ancestor instead of queryCommandState
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return false;
+    let node = selection.anchorNode;
+    while (node) {
+      if (node.nodeName === 'OL') {
+        return command === 'insertOrderedList';
+      }
+      if (node.nodeName === 'UL') {
+        return command === 'insertUnorderedList';
+      }
+      node = node.parentNode;
+    }
+    return false;
   }
   return document.queryCommandState(command);
 }

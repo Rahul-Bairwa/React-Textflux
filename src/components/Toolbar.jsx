@@ -96,6 +96,69 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
             active = isFormatActive('insertUnorderedList');
           }
         }
+        const handleListClick = (listType) => {
+          try {
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) {
+              format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+              setRerender(v => v + 1);
+              return;
+            }
+
+            const range = selection.getRangeAt(0);
+            let node = range.startContainer;
+            while (node && node.nodeType === Node.TEXT_NODE) {
+              node = node.parentNode;
+            }
+
+            const currentLi = node && (node.nodeName === 'LI' ? node : node.closest && node.closest('li'));
+            if (!currentLi) {
+              // Not inside a list → default behavior
+              format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+              setRerender(v => v + 1);
+              return;
+            }
+
+            // Inside an LI → ensure nested list under this LI and move caret into a new nested item
+            const nestedTag = listType === 'orderedList' ? 'OL' : 'UL';
+            let nestedList = null;
+            // Prefer an existing nested list of the requested type
+            for (let i = 0; i < currentLi.childNodes.length; i++) {
+              const child = currentLi.childNodes[i];
+              if (child.nodeType === Node.ELEMENT_NODE && child.nodeName === nestedTag) {
+                nestedList = child;
+                break;
+              }
+            }
+            if (!nestedList) {
+              nestedList = document.createElement(nestedTag);
+              // Always clear the current LI content to replace it with the nested list
+              while (currentLi.firstChild) currentLi.removeChild(currentLi.firstChild);
+              currentLi.appendChild(nestedList);
+              // Hide the marker of this LI since it only contains a nested list now
+              currentLi.style.listStyleType = 'none';
+              currentLi.style.paddingLeft = '0';
+            }
+
+            // Create a new nested list item and place caret inside
+            const nestedItem = document.createElement('li');
+            nestedItem.innerHTML = '<br>';
+            nestedList.appendChild(nestedItem);
+
+            const newRange = document.createRange();
+            newRange.setStart(nestedItem, 0);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+
+            setRerender(v => v + 1);
+          } catch (err) {
+            // Fallback to default behavior
+            format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+            setRerender(v => v + 1);
+          }
+        };
+
         return (
           <Tooltip key={key} label={tooltips[key].label} shortcut={tooltips[key].shortcut} theme={theme}>
             <button
@@ -110,8 +173,8 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
                     format('formatBlock', 'BLOCKQUOTE');
                   }
                 }
-                else if (key === 'orderedList') format('insertOrderedList');
-                else if (key === 'unorderedList') format('insertUnorderedList');
+                else if (key === 'orderedList') handleListClick('orderedList');
+                else if (key === 'unorderedList') handleListClick('unorderedList');
                 else format(key === 'strikethrough' ? 'strikeThrough' : key);
                 setRerender(v => v + 1);
               }}
