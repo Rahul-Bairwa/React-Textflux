@@ -1116,16 +1116,22 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     // Ordered List: Ctrl+Shift+L or Ctrl+Shift+7
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'l' || e.key === '7')) {
       e.preventDefault();
-      document.execCommand('insertOrderedList');
-      updateContent();
-      if (onChange) onChange(editorRef.current?.innerHTML || '');
+      const nested = createNestedListUnderCurrentLI('ordered');
+      if (!nested) {
+        document.execCommand('insertOrderedList');
+        updateContent();
+        if (onChange) onChange(editorRef.current?.innerHTML || '');
+      }
     }
     // Unordered List: Ctrl+Shift+O or Ctrl+Shift+8
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'o' || e.key === '8')) {
       e.preventDefault();
-      document.execCommand('insertUnorderedList');
-      updateContent();
-      if (onChange) onChange(editorRef.current?.innerHTML || '');
+      const nested = createNestedListUnderCurrentLI('unordered');
+      if (!nested) {
+        document.execCommand('insertUnorderedList');
+        updateContent();
+        if (onChange) onChange(editorRef.current?.innerHTML || '');
+      }
     }
     // Code Block: Ctrl+K
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -1145,6 +1151,48 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     document.execCommand('unlink', false, null);
     document.execCommand('formatBlock', false, 'div');
     updateContent();
+  };
+
+  // Create or focus a nested list under the current LI and move caret into a new nested item
+  const createNestedListUnderCurrentLI = (listType) => {
+    try {
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) return false;
+      const range = selection.getRangeAt(0);
+      let node = range.startContainer;
+      while (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+      const currentLi = node && (node.nodeName === 'LI' ? node : (node.closest && node.closest('li')));
+      if (!currentLi) return false;
+      const nestedTag = listType === 'ordered' ? 'OL' : 'UL';
+      let nestedList = null;
+      for (let i = 0; i < currentLi.childNodes.length; i++) {
+        const child = currentLi.childNodes[i];
+        if (child.nodeType === Node.ELEMENT_NODE && child.nodeName === nestedTag) {
+          nestedList = child;
+          break;
+        }
+      }
+      if (!nestedList) {
+        nestedList = document.createElement(nestedTag);
+        while (currentLi.firstChild) currentLi.removeChild(currentLi.firstChild);
+        currentLi.appendChild(nestedList);
+        currentLi.style.listStyleType = 'none';
+        currentLi.style.paddingLeft = '0';
+      }
+      const nestedItem = document.createElement('li');
+      nestedItem.innerHTML = '<br>';
+      nestedList.appendChild(nestedItem);
+      const newRange = document.createRange();
+      newRange.setStart(nestedItem, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   // Insert code block
