@@ -57,10 +57,10 @@ export default function App() {
   const contentRef = useRef(content);
   const lastSavedContent = useRef('');
 
-  useEffect(() => {
-    contentRef.current = content;
-    debouncedTransformLinks(content);
-  }, [content]);
+  // useEffect(() => {
+  //   contentRef.current = content;
+  //   debouncedTransformLinks(content);
+  // }, [content]);
 
   // --- API to transform links ---
   const transformLinks = async (text) => {
@@ -110,7 +110,6 @@ export default function App() {
 
   return (
     <div>
-      <h1 className="tf-text-center tf-mt-8 tf-mb-4">Minimal Rich Text Editor</h1>
       <Editor
         theme="light"
         className="my-mention-box"

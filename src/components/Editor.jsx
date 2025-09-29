@@ -149,6 +149,31 @@ function moveCursorToEnd(editorRef) {
   editor.focus();
 }
 
+// Ensure there's an editable paragraph after non-text blocks (e.g., blockquote)
+function ensureTrailingParagraph(editorRef) {
+  const editor = editorRef?.current;
+  if (!editor) return null;
+
+  const lastChild = editor.lastChild;
+  const needsTrailing = lastChild && (
+    (lastChild.nodeType === Node.ELEMENT_NODE && (
+      lastChild.nodeName === 'BLOCKQUOTE' ||
+      lastChild.nodeName === 'PRE' ||
+      lastChild.nodeName === 'OL' ||
+      lastChild.nodeName === 'UL' ||
+      (lastChild.classList && lastChild.classList.contains('tf-media-block'))
+    ))
+  );
+
+  if (needsTrailing) {
+    const paragraph = document.createElement('div');
+    paragraph.appendChild(document.createElement('br'));
+    editor.appendChild(paragraph);
+    return paragraph;
+  }
+  return null;
+}
+
 // Get caret character offset within an element (based on text content)
 function getCaretOffset(editorElement) {
   try {
@@ -406,6 +431,49 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       setShowMention(false);
       setMentionQuery('');
     }
+  };
+
+  // Shrink a mention text by removing one word from the end on Backspace
+  const shrinkMentionByOneWord = (mentionEl) => {
+    if (!mentionEl) return { removed: false };
+    // Use data-value if available (without leading @), otherwise derive from innerText
+    const originalValue = mentionEl.getAttribute('data-value') || (mentionEl.innerText || '').replace(/^@/, '');
+    const parts = originalValue.split(' ').filter(Boolean);
+    if (parts.length <= 1) {
+      // Remove entire mention
+      const parent = mentionEl.parentNode;
+      const nextSibling = mentionEl.nextSibling;
+      mentionEl.remove();
+      // Place caret at the position where the mention was
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        if (nextSibling) {
+          range.setStart(nextSibling, 0);
+        } else if (parent) {
+          range.selectNodeContents(parent);
+          range.collapse(false);
+        }
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch {}
+      return { removed: true };
+    }
+    // Remove last word and update
+    parts.pop();
+    const newValue = parts.join(' ');
+    mentionEl.setAttribute('data-value', newValue);
+    mentionEl.innerText = `@${newValue}`;
+    // Move caret after the mention element
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.setStartAfter(mentionEl);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch {}
+    return { removed: false };
   };
 
   // Insert mention at caret (with data attributes)
@@ -724,6 +792,26 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        // If a mention element is selected (non-collapsed), shrink on Backspace
+        if (!range.collapsed && e.key === 'Backspace') {
+          try {
+            if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.ELEMENT_NODE) {
+              const containerEl = range.startContainer;
+              const startIndex = range.startOffset;
+              const endIndex = range.endOffset;
+              if (endIndex === startIndex + 1) {
+                const candidate = containerEl.childNodes[startIndex];
+                if (candidate && candidate.classList && candidate.classList.contains('tf-mention')) {
+                  e.preventDefault();
+                  shrinkMentionByOneWord(candidate);
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+              }
+            }
+          } catch {}
+        }
         
         // Helper function to check if element is mention or link
         const isMentionOrLink = (element) => {
@@ -747,6 +835,22 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           let currentNode = range.startContainer;
           
           if (e.key === 'Backspace') {
+              // Case: caret is at an element boundary; check previous sibling by child index
+            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
+              let idx = range.startOffset - 1;
+              while (idx >= 0) {
+                const sibling = currentNode.childNodes[idx];
+                if (!sibling) break;
+                if (isMentionOrLink(sibling)) {
+                  return sibling;
+                }
+                if (isWhitespace(sibling)) {
+                  idx -= 1;
+                  continue;
+                }
+                break;
+              }
+            }
             // Check if we're inside a mention/link element
             let parentNode = currentNode;
             while (parentNode && parentNode !== editorRef.current) {
@@ -772,17 +876,37 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
               }
             }
             
-            // Special case: if cursor is in a whitespace node, look for mention/link before it
-            if (isWhitespace(currentNode) && range.startOffset === 0) {
+            // Special case: if cursor is in a whitespace node, look for mention/link before it (regardless of offset)
+            if (isWhitespace(currentNode)) {
               let prevNode = currentNode.previousSibling;
               while (prevNode) {
                 if (isMentionOrLink(prevNode)) {
+                  // Remove the whitespace if it's a single character so user doesn't need two backspaces
+                  if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent.length <= 1) {
+                    currentNode.remove();
+                  }
                   return prevNode;
                 }
                 prevNode = prevNode.previousSibling;
               }
             }
           } else if (e.key === 'Delete') {
+            // Case: caret is at an element boundary; check next sibling by child index
+            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE) {
+              let idx = range.startOffset;
+              while (idx < currentNode.childNodes.length) {
+                const sibling = currentNode.childNodes[idx];
+                if (!sibling) break;
+                if (isMentionOrLink(sibling)) {
+                  return sibling;
+                }
+                if (isWhitespace(sibling)) {
+                  idx += 1;
+                  continue;
+                }
+                break;
+              }
+            }
             // Check if we're inside a mention/link element
             let parentNode = currentNode;
             while (parentNode && parentNode !== editorRef.current) {
@@ -825,6 +949,14 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         
         const elementToDelete = findAndDeleteMentionOrLink();
         if (elementToDelete) {
+          // If Backspace adjacent to a mention, shrink it by one word instead of deleting
+          if (e.key === 'Backspace' && elementToDelete.classList && elementToDelete.classList.contains('tf-mention')) {
+            e.preventDefault();
+            const { removed } = shrinkMentionByOneWord(elementToDelete);
+            updateContent();
+            if (onChange) onChange(editorRef.current?.innerHTML || '');
+            return;
+          }
           e.preventDefault();
           elementToDelete.remove();
           updateContent();
@@ -970,6 +1102,16 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       }
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
+      // Make sure user can type after a trailing blockquote
+      const trailing = ensureTrailingParagraph(editorRef);
+      if (trailing) {
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.setStart(trailing, 0);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
     }
     // Ordered List: Ctrl+Shift+L or Ctrl+Shift+7
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key.toLowerCase() === 'l' || e.key === '7')) {
@@ -1322,6 +1464,27 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
+          // If a mention element is selected (non-collapsed), shrink on Backspace
+          if (!range.collapsed && e.key === 'Backspace') {
+            try {
+              if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.ELEMENT_NODE) {
+                const containerEl = range.startContainer;
+                const startIndex = range.startOffset;
+                const endIndex = range.endOffset;
+                if (endIndex === startIndex + 1) {
+                  const candidate = containerEl.childNodes[startIndex];
+                  if (candidate && candidate.classList && candidate.classList.contains('tf-mention')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    shrinkMentionByOneWord(candidate);
+                    updateContent();
+                    if (onChange) onChange(editorRef.current?.innerHTML || '');
+                    return;
+                  }
+                }
+              }
+            } catch {}
+          }
           let currentNode = range.startContainer;
           
           // Helper function to check if element is mention or link
@@ -1342,16 +1505,50 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           };
           
           if (e.key === 'Backspace') {
+            // Case: caret is at an element boundary; check previous sibling by child index
+            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
+              let idx = range.startOffset - 1;
+              while (idx >= 0) {
+                const sibling = currentNode.childNodes[idx];
+                if (!sibling) break;
+                if (isMentionOrLink(sibling)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (sibling.classList.contains('tf-mention')) {
+                    shrinkMentionByOneWord(sibling);
+                  } else {
+                    sibling.remove();
+                  }
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                if (isWhitespace(sibling)) {
+                  idx -= 1;
+                  continue;
+                }
+                break;
+              }
+            }
             // Check if we're inside a mention/link element
             let parentNode = currentNode;
             while (parentNode && parentNode !== editorRef.current) {
               if (isMentionOrLink(parentNode)) {
-                e.preventDefault();
-                e.stopPropagation();
-                parentNode.remove();
-                updateContent();
-                if (onChange) onChange(editorRef.current?.innerHTML || '');
-                return;
+                if (parentNode.classList.contains('tf-mention')) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const { removed } = shrinkMentionByOneWord(parentNode);
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                } else {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  parentNode.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
               }
               parentNode = parentNode.parentNode;
             }
@@ -1364,7 +1561,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
                 if (isMentionOrLink(prevNode)) {
                   e.preventDefault();
                   e.stopPropagation();
-                  prevNode.remove();
+                  if (prevNode.classList.contains('tf-mention')) {
+                    shrinkMentionByOneWord(prevNode);
+                  } else {
+                    prevNode.remove();
+                  }
                   updateContent();
                   if (onChange) onChange(editorRef.current?.innerHTML || '');
                   return;
@@ -1377,14 +1578,22 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
               }
             }
             
-            // Special case: if cursor is in a whitespace node, look for mention/link before it
-            if (isWhitespace(currentNode) && range.startOffset === 0) {
+            // Special case: if cursor is in a whitespace node, look for mention/link before it (regardless of offset)
+            if (isWhitespace(currentNode)) {
               let prevNode = currentNode.previousSibling;
               while (prevNode) {
                 if (isMentionOrLink(prevNode)) {
                   e.preventDefault();
                   e.stopPropagation();
-                  prevNode.remove();
+                  if (prevNode.classList.contains('tf-mention')) {
+                    shrinkMentionByOneWord(prevNode);
+                  } else {
+                    prevNode.remove();
+                  }
+                  // Remove tiny whitespace node so user doesn't press twice
+                  if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent.length <= 1) {
+                    currentNode.remove();
+                  }
                   updateContent();
                   if (onChange) onChange(editorRef.current?.innerHTML || '');
                   return;
@@ -1393,6 +1602,27 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
               }
             }
           } else if (e.key === 'Delete') {
+            // Case: caret is at an element boundary; check next sibling by child index
+            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE) {
+              let idx = range.startOffset;
+              while (idx < currentNode.childNodes.length) {
+                const sibling = currentNode.childNodes[idx];
+                if (!sibling) break;
+                if (isMentionOrLink(sibling)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  sibling.remove();
+                  updateContent();
+                  if (onChange) onChange(editorRef.current?.innerHTML || '');
+                  return;
+                }
+                if (isWhitespace(sibling)) {
+                  idx += 1;
+                  continue;
+                }
+                break;
+              }
+            }
             // Check if we're inside a mention/link element
             let parentNode = currentNode;
             while (parentNode && parentNode !== editorRef.current) {
@@ -1492,6 +1722,23 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         className={`tf-editor-area${isDragOver ? ' tf-dropzone-active' : ''}`}
         contentEditable
         spellCheck={true}
+        onMouseDown={(e) => {
+          const editorEl = editorRef.current;
+          if (!editorEl) return;
+          // If the user clicks on the empty area of the editor (container itself)
+          if (e.target === editorEl) {
+            const trailing = ensureTrailingParagraph(editorRef);
+            if (trailing) {
+              e.preventDefault();
+              const range = document.createRange();
+              const sel = window.getSelection();
+              range.setStart(trailing, 0);
+              range.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+          }
+        }}
         onKeyUp={handleKeyUp}
         onKeyDown={handleKeyDown}
         onInput={handleInput}
