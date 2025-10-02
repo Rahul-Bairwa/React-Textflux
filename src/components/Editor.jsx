@@ -458,11 +458,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         setShowMention(false);
         setMentionQuery('');
       } else {
-        setShowMention(true);
-        setMentionQuery(text.slice(atIdx + 1));
-        const basePosition = getCaretCoordinates(editorRef);
-        const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
-        setMentionPos(optimalPosition);
+      setShowMention(true);
+      setMentionQuery(text.slice(atIdx + 1));
+      const basePosition = getCaretCoordinates(editorRef);
+      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
+      setMentionPos(optimalPosition);
       }
     } else {
       setShowMention(false);
@@ -830,6 +830,37 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
+        // Backspace at start of code block → remove code block
+        if (e.key === 'Backspace') {
+          try {
+            let node = range.startContainer;
+            while (node && node.nodeType !== Node.ELEMENT_NODE) node = node.parentNode;
+            const codeBlock = node && (node.classList && node.classList.contains('tf-code-block')
+              ? node
+              : (node.closest && node.closest('pre.tf-code-block')));
+            if (codeBlock) {
+              const probe = document.createRange();
+              probe.setStart(codeBlock, 0);
+              probe.setEnd(range.startContainer, range.startOffset);
+              const isAtStart = (probe.toString() || '').length === 0;
+              if (isAtStart) {
+                e.preventDefault();
+                const paragraph = document.createElement('p');
+                paragraph.innerHTML = '<br>';
+                codeBlock.parentNode.insertBefore(paragraph, codeBlock);
+                codeBlock.remove();
+                const newRange = document.createRange();
+                newRange.setStart(paragraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                updateContent();
+                if (onChange) onChange(editorRef.current?.innerHTML || '');
+                return;
+              }
+            }
+          } catch {}
+        }
         // If a mention element is selected (non-collapsed), shrink on Backspace
         if (!range.collapsed && e.key === 'Backspace') {
           try {
@@ -963,9 +994,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
                 }
                 
                 // Create paragraph after the top-level list
-                const paragraph = document.createElement('p');
-                paragraph.innerHTML = '<br>';
-                
+              const paragraph = document.createElement('p');
+              paragraph.innerHTML = '<br>';
+              
                 if (topLevelList.nextSibling) {
                   topLevelList.parentNode.insertBefore(paragraph, topLevelList.nextSibling);
                 } else {
@@ -998,19 +1029,19 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
                   }
                 } else {
                   // List still has items, insert paragraph after the list
-                  if (list.nextSibling) {
-                    list.parentNode.insertBefore(paragraph, list.nextSibling);
-                  } else {
-                    list.parentNode.appendChild(paragraph);
+              if (list.nextSibling) {
+                list.parentNode.insertBefore(paragraph, list.nextSibling);
+              } else {
+                list.parentNode.appendChild(paragraph);
                   }
-                }
-                
-                // Move cursor to new paragraph
-                const newRange = document.createRange();
-                newRange.setStart(paragraph, 0);
-                newRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
+              }
+              
+              // Move cursor to new paragraph
+              const newRange = document.createRange();
+              newRange.setStart(paragraph, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
               }
             } else {
               // Create new list item
@@ -1118,9 +1149,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       e.preventDefault();
       const nested = createNestedListUnderCurrentLI('ordered');
       if (!nested) {
-        document.execCommand('insertOrderedList');
-        updateContent();
-        if (onChange) onChange(editorRef.current?.innerHTML || '');
+      document.execCommand('insertOrderedList');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
       }
     }
     // Unordered List: Ctrl+Shift+O or Ctrl+Shift+8
@@ -1128,9 +1159,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       e.preventDefault();
       const nested = createNestedListUnderCurrentLI('unordered');
       if (!nested) {
-        document.execCommand('insertUnorderedList');
-        updateContent();
-        if (onChange) onChange(editorRef.current?.innerHTML || '');
+      document.execCommand('insertUnorderedList');
+      updateContent();
+      if (onChange) onChange(editorRef.current?.innerHTML || '');
       }
     }
     // Code Block: Ctrl+K
@@ -1515,22 +1546,22 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           let currentNode = range.startContainer;
           
           // Only handle if we're inside a mention/link element
-          let parentNode = currentNode;
-          while (parentNode && parentNode !== editorRef.current) {
+            let parentNode = currentNode;
+            while (parentNode && parentNode !== editorRef.current) {
             if (parentNode.classList && (parentNode.classList.contains('tf-mention') || parentNode.classList.contains('tf-link'))) {
-              e.preventDefault();
-              e.stopPropagation();
+                e.preventDefault();
+                e.stopPropagation();
               if (e.key === 'Backspace' && parentNode.classList.contains('tf-mention')) {
                 shrinkMentionByOneWord(parentNode);
               } else {
                 parentNode.remove();
               }
-              updateContent();
-              if (onChange) onChange(editorRef.current?.innerHTML || '');
-              return;
+                updateContent();
+                if (onChange) onChange(editorRef.current?.innerHTML || '');
+                return;
+              }
+              parentNode = parentNode.parentNode;
             }
-            parentNode = parentNode.parentNode;
-          }
         }
       }
     };
