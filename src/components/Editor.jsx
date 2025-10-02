@@ -422,11 +422,44 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     // Mention trigger
     const atIdx = text.lastIndexOf('@');
     if (atIdx !== -1) {
-      setShowMention(true);
-      setMentionQuery(text.slice(atIdx + 1));
-      const basePosition = getCaretCoordinates(editorRef);
-      const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
-      setMentionPos(optimalPosition);
+      // Check if this @ belongs to a manually trimmed mention
+      let shouldBlockMention = false;
+      const queryAfterAt = text.slice(atIdx + 1);
+      
+      // Find all trimmed mentions in the editor
+      const trimmedMentions = editorRef.current?.querySelectorAll('.tf-mention[data-manually-trimmed="true"]') || [];
+      
+      for (const mention of trimmedMentions) {
+        const mentionText = mention.innerText || '';
+        const mentionValue = mentionText.replace(/^@/, '');
+        
+        // Check if the current @ query matches a trimmed mention
+        if (mentionValue && queryAfterAt && mentionValue.toLowerCase() === queryAfterAt.toLowerCase()) {
+          // Check if this @ is likely referring to the same trimmed mention
+          // by checking if it's in the same general area (same paragraph/line)
+          let currentElement = range.startContainer;
+          while (currentElement && currentElement.nodeType !== Node.ELEMENT_NODE) {
+            currentElement = currentElement.parentNode;
+          }
+          
+          if (currentElement && (currentElement === mention.parentNode || 
+              currentElement.contains(mention) || mention.parentNode?.contains(currentElement))) {
+            shouldBlockMention = true;
+            break;
+          }
+        }
+      }
+      
+      if (shouldBlockMention) {
+        setShowMention(false);
+        setMentionQuery('');
+      } else {
+        setShowMention(true);
+        setMentionQuery(text.slice(atIdx + 1));
+        const basePosition = getCaretCoordinates(editorRef);
+        const optimalPosition = getOptimalPopupPosition(editorRef, basePosition);
+        setMentionPos(optimalPosition);
+      }
     } else {
       setShowMention(false);
       setMentionQuery('');
@@ -463,6 +496,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     parts.pop();
     const newValue = parts.join(' ');
     mentionEl.setAttribute('data-value', newValue);
+    mentionEl.setAttribute('data-manually-trimmed', 'true'); // Mark as manually trimmed
     mentionEl.innerText = `@${newValue}`;
     // Move caret after the mention element
     try {
