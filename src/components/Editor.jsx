@@ -371,8 +371,12 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           const newText = textNode.textContent.replace(/^\d+\.\s*/, '');
           textNode.textContent = newText;
           
-          // Create ordered list
+          // Create ordered list with custom starting number
           const ol = document.createElement('ol');
+          const startNumber = parseInt(listNumber, 10);
+          if (startNumber > 1) {
+            ol.setAttribute('start', startNumber.toString());
+          }
           const li = document.createElement('li');
           li.innerHTML = '<br>';
           ol.appendChild(li);
@@ -1029,23 +1033,77 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
             // Check if current list item is empty (just <br> or empty)
             const listItemContent = listItem.textContent.trim();
             if (listItemContent === '' || listItemContent === '\u00A0') {
-              // Empty list item - exit the list
-              const paragraph = document.createElement('p');
-              paragraph.innerHTML = '<br>';
+              // Check if we're in a nested list (sublist)
+              const isNestedList = list.parentNode && list.parentNode.nodeName === 'LI';
               
-              // Insert paragraph after the list
-              if (list.nextSibling) {
-                list.parentNode.insertBefore(paragraph, list.nextSibling);
+              if (isNestedList) {
+                // We're in a sublist - remove empty item and exit completely from all lists
+                const parentListItem = list.parentNode;
+                let topLevelList = parentListItem.parentNode;
+                
+                // Find the top-level list by going up the hierarchy
+                while (topLevelList.parentNode && topLevelList.parentNode.nodeName === 'LI') {
+                  topLevelList = topLevelList.parentNode.parentNode;
+                }
+                
+                // Remove the empty sublist item
+                listItem.remove();
+                
+                // If the sublist is now empty, remove it entirely
+                if (list.children.length === 0) {
+                  list.remove();
+                }
+                
+                // Create paragraph after the top-level list
+                const paragraph = document.createElement('p');
+                paragraph.innerHTML = '<br>';
+                
+                if (topLevelList.nextSibling) {
+                  topLevelList.parentNode.insertBefore(paragraph, topLevelList.nextSibling);
+                } else {
+                  topLevelList.parentNode.appendChild(paragraph);
+                }
+                
+                // Move cursor to new paragraph
+                const newRange = document.createRange();
+                newRange.setStart(paragraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
               } else {
-                list.parentNode.appendChild(paragraph);
+                // We're in a top-level list - exit to paragraph
+                const paragraph = document.createElement('p');
+                paragraph.innerHTML = '<br>';
+                
+                // Remove the empty list item
+                listItem.remove();
+                
+                // If the list is now empty, remove it entirely
+                if (list.children.length === 0) {
+                  const listParent = list.parentNode;
+                  list.remove();
+                  
+                  if (listParent) {
+                    listParent.appendChild(paragraph);
+                  } else {
+                    editorRef.current.appendChild(paragraph);
+                  }
+                } else {
+                  // List still has items, insert paragraph after the list
+                  if (list.nextSibling) {
+                    list.parentNode.insertBefore(paragraph, list.nextSibling);
+                  } else {
+                    list.parentNode.appendChild(paragraph);
+                  }
+                }
+                
+                // Move cursor to new paragraph
+                const newRange = document.createRange();
+                newRange.setStart(paragraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
               }
-              
-              // Move cursor to new paragraph
-              const newRange = document.createRange();
-              newRange.setStart(paragraph, 0);
-              newRange.collapse(true);
-              selection.removeAllRanges();
-              selection.addRange(newRange);
             } else {
               // Create new list item
               const newLi = document.createElement('li');
