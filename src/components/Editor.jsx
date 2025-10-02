@@ -868,116 +868,24 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           return false;
         };
         
-        // Helper function to find and delete mention/link
-        const findAndDeleteMentionOrLink = () => {
+        // Only handle mentions/links if we're directly adjacent to them, not searching broadly
+        const findAdjacentMentionOrLink = () => {
           let currentNode = range.startContainer;
           
           if (e.key === 'Backspace') {
-              // Case: caret is at an element boundary; check previous sibling by child index
+            // Only check if we're immediately before a mention/link
+            if (range.collapsed && currentNode.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+              let prevSibling = currentNode.previousSibling;
+              if (prevSibling && isMentionOrLink(prevSibling)) {
+                return prevSibling;
+              }
+            }
+            
+            // Check if we're at element boundary immediately after a mention/link
             if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
-              let idx = range.startOffset - 1;
-              while (idx >= 0) {
-                const sibling = currentNode.childNodes[idx];
-                if (!sibling) break;
-                if (isMentionOrLink(sibling)) {
-                  return sibling;
-                }
-                if (isWhitespace(sibling)) {
-                  idx -= 1;
-                  continue;
-                }
-                break;
-              }
-            }
-            // Check if we're inside a mention/link element
-            let parentNode = currentNode;
-            while (parentNode && parentNode !== editorRef.current) {
-              if (isMentionOrLink(parentNode)) {
-                return parentNode;
-              }
-              parentNode = parentNode.parentNode;
-            }
-            
-            // Check if cursor is at the beginning of a text node
-            if (range.startOffset === 0 && currentNode.nodeType === Node.TEXT_NODE) {
-              // Look for mention/link in previous siblings, skipping whitespace
-              let prevNode = currentNode.previousSibling;
-              while (prevNode) {
-                if (isMentionOrLink(prevNode)) {
-                  return prevNode;
-                }
-                // Skip whitespace nodes
-                if (!isWhitespace(prevNode)) {
-                  break;
-                }
-                prevNode = prevNode.previousSibling;
-              }
-            }
-            
-            // Special case: if cursor is in a whitespace node, look for mention/link before it (regardless of offset)
-            if (isWhitespace(currentNode)) {
-              let prevNode = currentNode.previousSibling;
-              while (prevNode) {
-                if (isMentionOrLink(prevNode)) {
-                  // Remove the whitespace if it's a single character so user doesn't need two backspaces
-                  if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent.length <= 1) {
-                    currentNode.remove();
-                  }
-                  return prevNode;
-                }
-                prevNode = prevNode.previousSibling;
-              }
-            }
-          } else if (e.key === 'Delete') {
-            // Case: caret is at an element boundary; check next sibling by child index
-            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE) {
-              let idx = range.startOffset;
-              while (idx < currentNode.childNodes.length) {
-                const sibling = currentNode.childNodes[idx];
-                if (!sibling) break;
-                if (isMentionOrLink(sibling)) {
-                  return sibling;
-                }
-                if (isWhitespace(sibling)) {
-                  idx += 1;
-                  continue;
-                }
-                break;
-              }
-            }
-            // Check if we're inside a mention/link element
-            let parentNode = currentNode;
-            while (parentNode && parentNode !== editorRef.current) {
-              if (isMentionOrLink(parentNode)) {
-                return parentNode;
-              }
-              parentNode = parentNode.parentNode;
-            }
-            
-            // Check if cursor is at the end of a text node
-            if (range.startOffset === currentNode.textContent.length && currentNode.nodeType === Node.TEXT_NODE) {
-              // Look for mention/link in next siblings, skipping whitespace
-              let nextNode = currentNode.nextSibling;
-              while (nextNode) {
-                if (isMentionOrLink(nextNode)) {
-                  return nextNode;
-                }
-                // Skip whitespace nodes
-                if (!isWhitespace(nextNode)) {
-                  break;
-                }
-                nextNode = nextNode.nextSibling;
-              }
-            }
-            
-            // Special case: if cursor is in a whitespace node, look for mention/link after it
-            if (isWhitespace(currentNode) && range.startOffset === currentNode.textContent.length) {
-              let nextNode = currentNode.nextSibling;
-              while (nextNode) {
-                if (isMentionOrLink(nextNode)) {
-                  return nextNode;
-                }
-                nextNode = nextNode.nextSibling;
+              const prevChild = currentNode.childNodes[range.startOffset - 1];
+              if (prevChild && isMentionOrLink(prevChild)) {
+                return prevChild;
               }
             }
           }
@@ -985,7 +893,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           return null;
         };
         
-        const elementToDelete = findAndDeleteMentionOrLink();
+        const elementToDelete = findAdjacentMentionOrLink();
         if (elementToDelete) {
           // If Backspace adjacent to a mention, shrink it by one word instead of deleting
           if (e.key === 'Backspace' && elementToDelete.classList && elementToDelete.classList.contains('tf-mention')) {
@@ -1597,222 +1505,31 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [editorRef]);
 
-  // Add specific event listener for mention and link deletion
+  // Simplified capture-phase listener - only handle when inside a mention/link
   React.useEffect(() => {
     const handleMentionLinkDeletion = (e) => {
       if (e.key === 'Backspace' || e.key === 'Delete') {
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
-          // If a mention element is selected (non-collapsed), shrink on Backspace
-          if (!range.collapsed && e.key === 'Backspace') {
-            try {
-              if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.ELEMENT_NODE) {
-                const containerEl = range.startContainer;
-                const startIndex = range.startOffset;
-                const endIndex = range.endOffset;
-                if (endIndex === startIndex + 1) {
-                  const candidate = containerEl.childNodes[startIndex];
-                  if (candidate && candidate.classList && candidate.classList.contains('tf-mention')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    shrinkMentionByOneWord(candidate);
-                    updateContent();
-                    if (onChange) onChange(editorRef.current?.innerHTML || '');
-                    return;
-                  }
-                }
-              }
-            } catch {}
-          }
           let currentNode = range.startContainer;
           
-          // Helper function to check if element is mention or link
-          const isMentionOrLink = (element) => {
-            return element && element.classList && (
-              element.classList.contains('tf-mention') || 
-              element.classList.contains('tf-link')
-            );
-          };
-          
-          // Helper function to check if element is whitespace (including &nbsp;)
-          const isWhitespace = (element) => {
-            if (!element) return false;
-            if (element.nodeType === Node.TEXT_NODE) {
-              return element.textContent.trim() === '' || element.textContent === '\u00A0';
-            }
-            return false;
-          };
-          
-          if (e.key === 'Backspace') {
-            // Case: caret is at an element boundary; check previous sibling by child index
-            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
-              let idx = range.startOffset - 1;
-              while (idx >= 0) {
-                const sibling = currentNode.childNodes[idx];
-                if (!sibling) break;
-                if (isMentionOrLink(sibling)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (sibling.classList.contains('tf-mention')) {
-                    shrinkMentionByOneWord(sibling);
-                  } else {
-                    sibling.remove();
-                  }
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                if (isWhitespace(sibling)) {
-                  idx -= 1;
-                  continue;
-                }
-                break;
-              }
-            }
-            // Check if we're inside a mention/link element
-            let parentNode = currentNode;
-            while (parentNode && parentNode !== editorRef.current) {
-              if (isMentionOrLink(parentNode)) {
-                if (parentNode.classList.contains('tf-mention')) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const { removed } = shrinkMentionByOneWord(parentNode);
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                } else {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  parentNode.remove();
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-              }
-              parentNode = parentNode.parentNode;
-            }
-            
-            // Check if cursor is at the beginning of a text node
-            if (range.startOffset === 0 && currentNode.nodeType === Node.TEXT_NODE) {
-              // Look for mention/link in previous siblings, skipping whitespace
-              let prevNode = currentNode.previousSibling;
-              while (prevNode) {
-                if (isMentionOrLink(prevNode)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (prevNode.classList.contains('tf-mention')) {
-                    shrinkMentionByOneWord(prevNode);
-                  } else {
-                    prevNode.remove();
-                  }
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                // Skip whitespace nodes
-                if (!isWhitespace(prevNode)) {
-                  break;
-                }
-                prevNode = prevNode.previousSibling;
-              }
-            }
-            
-            // Special case: if cursor is in a whitespace node, look for mention/link before it (regardless of offset)
-            if (isWhitespace(currentNode)) {
-              let prevNode = currentNode.previousSibling;
-              while (prevNode) {
-                if (isMentionOrLink(prevNode)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (prevNode.classList.contains('tf-mention')) {
-                    shrinkMentionByOneWord(prevNode);
-                  } else {
-                    prevNode.remove();
-                  }
-                  // Remove tiny whitespace node so user doesn't press twice
-                  if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent.length <= 1) {
-                    currentNode.remove();
-                  }
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                prevNode = prevNode.previousSibling;
-              }
-            }
-          } else if (e.key === 'Delete') {
-            // Case: caret is at an element boundary; check next sibling by child index
-            if (range.collapsed && currentNode.nodeType === Node.ELEMENT_NODE) {
-              let idx = range.startOffset;
-              while (idx < currentNode.childNodes.length) {
-                const sibling = currentNode.childNodes[idx];
-                if (!sibling) break;
-                if (isMentionOrLink(sibling)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  sibling.remove();
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                if (isWhitespace(sibling)) {
-                  idx += 1;
-                  continue;
-                }
-                break;
-              }
-            }
-            // Check if we're inside a mention/link element
-            let parentNode = currentNode;
-            while (parentNode && parentNode !== editorRef.current) {
-              if (isMentionOrLink(parentNode)) {
-                e.preventDefault();
-                e.stopPropagation();
+          // Only handle if we're inside a mention/link element
+          let parentNode = currentNode;
+          while (parentNode && parentNode !== editorRef.current) {
+            if (parentNode.classList && (parentNode.classList.contains('tf-mention') || parentNode.classList.contains('tf-link'))) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.key === 'Backspace' && parentNode.classList.contains('tf-mention')) {
+                shrinkMentionByOneWord(parentNode);
+              } else {
                 parentNode.remove();
-                updateContent();
-                if (onChange) onChange(editorRef.current?.innerHTML || '');
-                return;
               }
-              parentNode = parentNode.parentNode;
+              updateContent();
+              if (onChange) onChange(editorRef.current?.innerHTML || '');
+              return;
             }
-            
-            // Check if cursor is at the end of a text node
-            if (range.startOffset === currentNode.textContent.length && currentNode.nodeType === Node.TEXT_NODE) {
-              // Look for mention/link in next siblings, skipping whitespace
-              let nextNode = currentNode.nextSibling;
-              while (nextNode) {
-                if (isMentionOrLink(nextNode)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  nextNode.remove();
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                // Skip whitespace nodes
-                if (!isWhitespace(nextNode)) {
-                  break;
-                }
-                nextNode = nextNode.nextSibling;
-              }
-            }
-            
-            // Special case: if cursor is in a whitespace node, look for mention/link after it
-            if (isWhitespace(currentNode) && range.startOffset === currentNode.textContent.length) {
-              let nextNode = currentNode.nextSibling;
-              while (nextNode) {
-                if (isMentionOrLink(nextNode)) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  nextNode.remove();
-                  updateContent();
-                  if (onChange) onChange(editorRef.current?.innerHTML || '');
-                  return;
-                }
-                nextNode = nextNode.nextSibling;
-              }
-            }
+            parentNode = parentNode.parentNode;
           }
         }
       }
