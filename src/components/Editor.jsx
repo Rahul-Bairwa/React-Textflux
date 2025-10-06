@@ -149,6 +149,53 @@ function moveCursorToEnd(editorRef) {
   editor.focus();
 }
 
+// Check if current selection fully covers the editor contents
+function selectionCoversEntireEditor(editorRef) {
+  try {
+    const editor = editorRef?.current;
+    if (!editor) return false;
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return false;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return false;
+    if (range.collapsed) return false;
+
+    // Compute text before selection
+    const before = document.createRange();
+    before.selectNodeContents(editor);
+    before.setEnd(range.startContainer, range.startOffset);
+    const beforeText = (before.toString() || '').replace(/\u00A0/g, '').trim();
+
+    // Compute text after selection
+    const after = document.createRange();
+    after.selectNodeContents(editor);
+    after.setStart(range.endContainer, range.endOffset);
+    const afterText = (after.toString() || '').replace(/\u00A0/g, '').trim();
+
+    return beforeText === '' && afterText === '';
+  } catch {
+    return false;
+  }
+}
+
+// Clear editor to a single empty paragraph and place caret
+function clearEditorToEmptyParagraph(editorRef, updateContent, onChange) {
+  const editor = editorRef?.current;
+  if (!editor) return;
+  editor.innerHTML = '';
+  const paragraph = document.createElement('div');
+  paragraph.appendChild(document.createElement('br'));
+  editor.appendChild(paragraph);
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.setStart(paragraph, 0);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  updateContent();
+  if (onChange) onChange(editorRef.current?.innerHTML || '');
+}
+
 // Ensure there's an editable paragraph after non-text blocks (e.g., blockquote)
 function ensureTrailingParagraph(editorRef) {
   const editor = editorRef?.current;
@@ -893,6 +940,12 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   };
 
   const handleKeyDown = (e) => {
+    // If everything inside the editor is selected, a single Backspace/Delete clears all
+    if ((e.key === 'Backspace' || e.key === 'Delete') && selectionCoversEntireEditor(editorRef)) {
+      e.preventDefault();
+      clearEditorToEmptyParagraph(editorRef, updateContent, onChange);
+      return;
+    }
     // Handle backspace and delete for mentions and links
     if (e.key === 'Backspace' || e.key === 'Delete') {
       const selection = window.getSelection();
@@ -1702,6 +1755,13 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   React.useEffect(() => {
     const handleMentionLinkDeletion = (e) => {
       if (e.key === 'Backspace' || e.key === 'Delete') {
+        // If full editor selection is active, clear all in one go
+        if (selectionCoversEntireEditor(editorRef)) {
+          e.preventDefault();
+          e.stopPropagation();
+          clearEditorToEmptyParagraph(editorRef, updateContent, onChange);
+          return;
+        }
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
