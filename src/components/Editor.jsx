@@ -232,7 +232,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
-  const [media, setMedia] = useState([]);
   const [mediaLoading, setMediaLoading] = useState([]); // array of {id, type}
   const [isDragOver, setIsDragOver] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -741,8 +740,37 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         console.error('No file provided to handleInsertMedia');
         return;
       }
+      
+      // Get current cursor position
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      
+      // Create loading skeleton at cursor position
       const id = genId();
+      const skeletonBlock = document.createElement('div');
+      skeletonBlock.className = `tf-media-block tf-media-skeleton tf-media-skeleton-${type.startsWith('image') ? 'img' : 'video'}`;
+      skeletonBlock.dataset.loadingId = id;
+      skeletonBlock.innerHTML = `
+        <div class="tf-skeleton-anim" style="width: 100%; height: ${type.startsWith('image') ? 180 : 180}px; border-radius: 6px; background: #f0f0f0; animation: pulse 1.5s ease-in-out infinite;"></div>
+      `;
+      
+      // Insert skeleton at cursor position
+      range.insertNode(skeletonBlock);
+      
+      // Create a new line after the skeleton
+      const newLine = document.createElement('div');
+      newLine.innerHTML = '<br>';
+      skeletonBlock.parentNode.insertBefore(newLine, skeletonBlock.nextSibling);
+      
+      // Move cursor to the new line after skeleton
+      const newRange = document.createRange();
+      newRange.setStart(newLine, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      
       setMediaLoading(m => [...m, { id, type }]);
+      
       let url = '';
       if (onMediaUpload) {
         const result = await onMediaUpload(file, type);
@@ -750,20 +778,35 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       } else {
         url = await fileToBase64(file);
       }
+      
       setMediaLoading(m => m.filter(item => item.id !== id));
+      
       if (url) {
-        setMedia(m => {
-          const newMedia = [...m, { src: url, type }];
-          // Move cursor after media insertion
-          setTimeout(() => {
-            if (onChange && editorRef.current) {
-              onChange(editorRef.current.innerHTML);
+        // Replace skeleton with actual media
+        const mediaBlock = document.createElement('div');
+        mediaBlock.className = 'tf-media-block';
+        mediaBlock.innerHTML = `
+          <div class="tf-media-container">
+            ${type.startsWith('image') 
+              ? `<img src="${url}" alt="uploaded image" style="max-width: 100%; height: auto; border-radius: 6px;" />`
+              : `<video src="${url}" controls style="max-width: 100%; height: auto; border-radius: 6px;"></video>`
             }
-            // Move cursor to end of editor
-            moveCursorToEnd(editorRef);
-          }, 0);
-          return newMedia;
-        });
+          </div>
+        `;
+        
+        // Replace skeleton with media block
+        skeletonBlock.parentNode.replaceChild(mediaBlock, skeletonBlock);
+        
+        // Update content and trigger onChange
+        setTimeout(() => {
+          if (onChange && editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+          editorRef.current.focus();
+        }, 0);
+      } else {
+        // Remove skeleton if upload failed
+        skeletonBlock.remove();
       }
     } catch (error) {
       console.error('Error in handleInsertMedia:', error);
@@ -771,25 +814,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
   };
 
-  // Render media blocks and skeletons with newline placeholders
-  const renderMedia = () => (
-    <>
-      {media.map((m, i) => (
-        <React.Fragment key={`media-${i}`}>
-          <MediaBlock src={m.src} type={m.type} mediaFullscreen={mediaFullscreen} />
-          <div><br /></div>
-        </React.Fragment>
-      ))}
-      {mediaLoading.map((item) => (
-        <React.Fragment key={item.id}>
-          <div className={`tf-media-block tf-media-skeleton tf-media-skeleton-${item.type.startsWith('image') ? 'img' : 'video'}`}>
-            <div className="tf-skeleton-anim" style={{ width: '100%', height: item.type.startsWith('image') ? 180 : 180, borderRadius: 6 }} />
-          </div>
-          <div><br /></div>
-        </React.Fragment>
-      ))}
-    </>
-  );
 
   // Sync content on input
   const handleInput = () => {
@@ -1763,7 +1787,6 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         suppressContentEditableWarning
         aria-label="Rich text editor"
       >
-        {renderMedia()}
       </div>
       <Toolbar
         key={toolbarRerender}
