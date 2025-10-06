@@ -113,18 +113,62 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
 
             const currentLi = node && (node.nodeName === 'LI' ? node : node.closest && node.closest('li'));
             if (!currentLi) {
-              // Not inside a list → default behavior
+              // Not inside a list
+              if (listType === 'orderedList') {
+                // Try to continue numbering from the immediately previous OL if present
+                const editorEl = document.querySelector('.tf-editor-area');
+                let block = node;
+                while (block && block.parentNode && editorEl && block.parentNode !== editorEl) {
+                  block = block.parentNode;
+                }
+                const prev = block && block.previousSibling;
+                const isEmptyBlock = block && ((block.textContent || '').trim() === '' || (block.nodeName === 'DIV' && block.innerHTML === '<br>'));
+                if (prev && prev.nodeName === 'OL' && editorEl && isEmptyBlock) {
+                  // Compute next start = last number + 1
+                  const startAttr = parseInt(prev.getAttribute('start') || '1', 10) || 1;
+                  const lis = Array.from(prev.children || []).filter(el => el.nodeName === 'LI');
+                  const visibleLis = lis.filter(li => (li.textContent || '').trim() !== '' || li.querySelector('ol,ul'));
+                  const lastNumber = startAttr + Math.max(visibleLis.length, lis.length) - 1;
+                  const nextStart = Math.max(lastNumber + 1, 1);
+
+                  const ol = document.createElement('ol');
+                  if (nextStart > 1) ol.setAttribute('start', String(nextStart));
+                  const li = document.createElement('li');
+                  li.innerHTML = '<br>';
+                  ol.appendChild(li);
+
+                  // Insert OL at current block position and remove the empty block
+                  if (block.parentNode) {
+                    block.parentNode.insertBefore(ol, block);
+                    block.parentNode.removeChild(block);
+
+                    const newRange = document.createRange();
+                    newRange.setStart(li, 0);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    setRerender(v => v + 1);
+                    return;
+                  }
+                }
+              }
+              // Default behavior
               format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
               setRerender(v => v + 1);
               return;
             }
 
-            // Inside an LI → ensure nested list under this LI and move caret into a new nested item
+            // Inside an LI → ensure nested list. If current LI is empty, attach sublist to previous LI to avoid numbering gaps
             const nestedTag = listType === 'orderedList' ? 'OL' : 'UL';
+            const isEmptyLi = (currentLi.textContent || '').replace(/\u00A0/g, '').trim() === '' && (!currentLi.querySelector('ol,ul'));
+            let hostLi = currentLi;
+            if (isEmptyLi && currentLi.previousElementSibling && currentLi.previousElementSibling.nodeName === 'LI') {
+              hostLi = currentLi.previousElementSibling;
+            }
+
             let nestedList = null;
-            // Prefer an existing nested list of the requested type
-            for (let i = 0; i < currentLi.childNodes.length; i++) {
-              const child = currentLi.childNodes[i];
+            for (let i = 0; i < hostLi.childNodes.length; i++) {
+              const child = hostLi.childNodes[i];
               if (child.nodeType === Node.ELEMENT_NODE && child.nodeName === nestedTag) {
                 nestedList = child;
                 break;
@@ -132,12 +176,15 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
             }
             if (!nestedList) {
               nestedList = document.createElement(nestedTag);
-              // Always clear the current LI content to replace it with the nested list
-              while (currentLi.firstChild) currentLi.removeChild(currentLi.firstChild);
-              currentLi.appendChild(nestedList);
-              // Hide the marker of this LI since it only contains a nested list now
-              currentLi.style.listStyleType = 'none';
-              currentLi.style.paddingLeft = '0';
+              hostLi.appendChild(nestedList);
+            }
+
+            // If sublist was attached to previous LI and current LI was empty, remove the empty LI
+            if (hostLi !== currentLi && isEmptyLi) {
+              const liToRemove = currentLi;
+              const parentList = liToRemove.parentNode;
+              liToRemove.remove();
+              // If parent list becomes empty, keep it (user is still in list context)
             }
 
             // Create a new nested list item and place caret inside

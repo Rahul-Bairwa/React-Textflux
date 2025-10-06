@@ -793,6 +793,28 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   // Sync content on input
   const handleInput = () => {
+    // Normalize legacy list containers that hide markers and break numbering
+    try {
+      if (editorRef.current) {
+        const ols = editorRef.current.querySelectorAll('ol');
+        ols.forEach(ol => {
+          const items = Array.from(ol.children || []);
+          items.forEach(li => {
+            if (li && li.nodeName === 'LI') {
+              const onlySublist = li.childElementCount === 1 && (li.firstElementChild?.nodeName === 'UL' || li.firstElementChild?.nodeName === 'OL');
+              const hasHiddenMarker = (li.getAttribute('style') || '').includes('list-style-type: none');
+              const noText = (li.textContent || '').replace(/\u00A0/g, '').trim() === '';
+              if ((onlySublist && (hasHiddenMarker || noText)) && li.previousElementSibling && li.previousElementSibling.nodeName === 'LI') {
+                // Move sublist under previous LI and remove this empty container LI
+                const sub = li.firstElementChild;
+                li.previousElementSibling.appendChild(sub);
+                li.remove();
+              }
+            }
+          });
+        });
+      }
+    } catch {}
     updateContent();
     if (onChange) onChange(editorRef.current?.innerHTML || '');
   };
@@ -851,6 +873,100 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
                 codeBlock.remove();
                 const newRange = document.createRange();
                 newRange.setStart(paragraph, 0);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+                updateContent();
+                if (onChange) onChange(editorRef.current?.innerHTML || '');
+                return;
+              }
+            }
+          } catch {}
+        }
+
+        // Backspace at start of a list item → convert that item to a normal paragraph
+        if (e.key === 'Backspace') {
+          try {
+            // Find enclosing LI
+            let liNode = range.startContainer;
+            while (liNode && liNode.nodeType === Node.TEXT_NODE) liNode = liNode.parentNode;
+            liNode = liNode && (liNode.nodeName === 'LI' ? liNode : (liNode.closest && liNode.closest('li')));
+            const parentList = liNode && liNode.parentNode;
+            if (liNode && parentList && (parentList.nodeName === 'OL' || parentList.nodeName === 'UL')) {
+              // Determine if caret is at absolute start of this LI
+              const probe = document.createRange();
+              probe.setStart(liNode, 0);
+              probe.setEnd(range.startContainer, range.startOffset);
+              const atStartOfLi = (probe.toString() || '').replace(/\u00A0/g, '').trim() === '';
+              if (atStartOfLi) {
+                e.preventDefault();
+                // Create paragraph; we'll insert it OUTSIDE the OL/UL to avoid list styling bleed
+                const paragraph = document.createElement('p');
+                paragraph.innerHTML = '';
+
+                // Move inline content (non-list children) into paragraph
+                const toMove = [];
+                Array.from(liNode.childNodes).forEach((child) => {
+                  if (child.nodeType === Node.ELEMENT_NODE && (child.nodeName === 'UL' || child.nodeName === 'OL')) return;
+                  toMove.push(child);
+                });
+                if (toMove.length === 0) paragraph.innerHTML = '<br>';
+                else toMove.forEach(n => paragraph.appendChild(n));
+
+                // Determine LI index within its list
+                const liIndex = Array.prototype.indexOf.call(parentList.children, liNode);
+
+                // Collect remaining sublists from current LI to be placed after the paragraph
+                const liSublists = Array.from(liNode.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE && (n.nodeName === 'UL' || n.nodeName === 'OL'));
+
+                // If there are following LIs, move them to a new list and insert after paragraph
+                const followingLis = [];
+                for (let sib = liNode.nextSibling; sib; ) {
+                  const next = sib.nextSibling;
+                  if (sib.nodeName === 'LI') followingLis.push(sib);
+                  sib = next;
+                }
+
+                let newList = null;
+                if (followingLis.length > 0) {
+                  newList = document.createElement(parentList.nodeName);
+                  followingLis.forEach(li => newList.appendChild(li));
+                }
+
+                // Remove the LI from its list
+                liNode.remove();
+
+                // Insert paragraph outside the list at the correct position
+                const listParent = parentList.parentNode;
+                if (liIndex === 0) {
+                  // Insert before the list
+                  listParent.insertBefore(paragraph, parentList);
+                } else {
+                  // Insert after the list (we keep previous LIs in original list)
+                  if (parentList.nextSibling) listParent.insertBefore(paragraph, parentList.nextSibling);
+                  else listParent.appendChild(paragraph);
+                }
+
+                // Append any sublists from the LI after the paragraph
+                liSublists.forEach(sub => {
+                  if (paragraph.nextSibling) listParent.insertBefore(sub, paragraph.nextSibling);
+                  else listParent.appendChild(sub);
+                });
+
+                // If we created a new list from following items, place it after the paragraph/sublist
+                if (newList) {
+                  if (paragraph.nextSibling) listParent.insertBefore(newList, paragraph.nextSibling);
+                  else listParent.appendChild(newList);
+                }
+
+                // If parent list becomes empty, remove it
+                if (parentList.children.length === 0) {
+                  parentList.remove();
+                }
+
+                // Place caret in the paragraph
+                const newRange = document.createRange();
+                newRange.selectNodeContents(paragraph);
                 newRange.collapse(true);
                 selection.removeAllRanges();
                 selection.addRange(newRange);
