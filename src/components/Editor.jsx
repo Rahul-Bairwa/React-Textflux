@@ -785,14 +785,36 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         // Replace skeleton with actual media
         const mediaBlock = document.createElement('div');
         mediaBlock.className = 'tf-media-block';
-        mediaBlock.innerHTML = `
-          <div class="tf-media-container">
-            ${type.startsWith('image') 
-              ? `<img src="${url}" alt="uploaded image" style="max-width: 100%; height: auto; border-radius: 6px;" />`
-              : `<video src="${url}" controls style="max-width: 100%; height: auto; border-radius: 6px;"></video>`
-            }
-          </div>
-        `;
+        
+        if (type.startsWith('image')) {
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = 'uploaded image';
+          img.style.cssText = 'max-width: 100%; height: auto; border-radius: 6px; display: block;';
+          if (mediaFullscreen) {
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showMediaFullscreen(url, 'image');
+            });
+          }
+          mediaBlock.appendChild(img);
+        } else {
+          const video = document.createElement('video');
+          video.src = url;
+          video.controls = true;
+          video.style.cssText = 'max-width: 100%; height: auto; border-radius: 6px; display: block;';
+          if (mediaFullscreen) {
+            video.style.cursor = 'pointer';
+            video.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showMediaFullscreen(url, 'video');
+            });
+          }
+          mediaBlock.appendChild(video);
+        }
         
         // Replace skeleton with media block
         skeletonBlock.parentNode.replaceChild(mediaBlock, skeletonBlock);
