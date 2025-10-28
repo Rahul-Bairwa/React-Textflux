@@ -523,23 +523,18 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     const originalValue = mentionEl.getAttribute('data-value') || (mentionEl.innerText || '').replace(/^@/, '');
     const parts = originalValue.split(' ').filter(Boolean);
     if (parts.length <= 1) {
-      // Remove entire mention
-      const parent = mentionEl.parentNode;
-      const nextSibling = mentionEl.nextSibling;
-      mentionEl.remove();
-      // Place caret at the position where the mention was
+      // Remove entire mention using execCommand to maintain undo history
       try {
         const sel = window.getSelection();
         const range = document.createRange();
-        if (nextSibling) {
-          range.setStart(nextSibling, 0);
-        } else if (parent) {
-          range.selectNodeContents(parent);
-          range.collapse(false);
-        }
+        range.selectNode(mentionEl);
         sel.removeAllRanges();
         sel.addRange(range);
-      } catch {}
+        document.execCommand('delete', false, null);
+      } catch {
+        // Fallback: direct removal
+        mentionEl.remove();
+      }
       return { removed: true };
     }
     // Remove last word and update
@@ -572,26 +567,13 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       range.setStart(range.startContainer, atIdx);
       range.deleteContents();
     }
-    // Insert mention span with data attributes
-    const mentionSpan = document.createElement('span');
-    mentionSpan.className = 'tf-mention';
-    mentionSpan.contentEditable = 'false';
-    mentionSpan.innerText = `@${user.name}`;
-    mentionSpan.setAttribute('data-id', user.id);
-    mentionSpan.setAttribute('data-value', user.name);
-    if (user.profile_pic) mentionSpan.setAttribute('data-profile-pic', user.profile_pic);
-    range.insertNode(mentionSpan);
-    // Move caret after the mention span (no space, no nbsp)
-    range.setStartAfter(mentionSpan);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    // Remove any accidental &nbsp; after the mention span
-    if (mentionSpan.nextSibling && mentionSpan.nextSibling.nodeType === Node.TEXT_NODE) {
-      if (mentionSpan.nextSibling.textContent.startsWith('\u00A0')) {
-        mentionSpan.nextSibling.textContent = mentionSpan.nextSibling.textContent.replace(/^\u00A0+/, '');
-      }
-    }
+    // Create mention HTML with data attributes and zero-width space after it
+    const profilePicAttr = user.profile_pic ? ` data-profile-pic="${user.profile_pic}"` : '';
+    const mentionHTML = `<span class="tf-mention" contenteditable="false" data-id="${user.id}" data-value="${user.name}"${profilePicAttr}>@${user.name}</span>\u200B`;
+    
+    // Use execCommand to maintain undo history
+    document.execCommand('insertHTML', false, mentionHTML);
+    
     setShowMention(false);
     setMentionQuery('');
     setJustSelectedMention(true);
@@ -672,13 +654,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       
       // Handle empty editor case
       if (!range.startContainer || !range.startContainer.textContent) {
-        // Editor is empty, just insert emoji at the beginning
-        const emojiNode = document.createTextNode(emoji);
-        range.insertNode(emojiNode);
-        range.setStartAfter(emojiNode);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
+        // Editor is empty, just insert emoji using execCommand
+        document.execCommand('insertHTML', false, emoji + '\u200B');
         setShowEmojiPicker(false);
         setEmojiSearchQuery('');
         updateContent();
@@ -710,13 +687,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         }
       }
       
-      // Insert the emoji
-      const emojiNode = document.createTextNode(emoji);
-      range.insertNode(emojiNode);
-      
-      // Move cursor after the emoji
-      range.setStartAfter(emojiNode);
-      range.collapse(true);
+      // Insert the emoji using execCommand to maintain undo history with zero-width space
+      document.execCommand('insertHTML', false, emoji + '\u200B');
       
       sel.removeAllRanges();
       sel.addRange(range);
@@ -737,13 +709,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       
     } catch (error) {
       console.error('Error inserting emoji:', error);
-      // Fallback: just insert emoji at the end
+      // Fallback: just insert emoji using execCommand
       if (editorRef.current) {
-        const range = document.createRange();
-        range.selectNodeContents(editorRef.current);
-        range.collapse(false);
-        range.insertNode(document.createTextNode(emoji));
         editorRef.current.focus();
+        document.execCommand('insertHTML', false, emoji + '\u200B');
         updateContent();
         if (onChange) {
           onChange(editorRef.current.innerHTML);
@@ -788,33 +757,14 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         return;
       }
       
-      // Get current cursor position
-      const selection = window.getSelection();
-      const range = selection.getRangeAt(0);
-      
       // Create loading skeleton at cursor position
       const id = genId();
-      const skeletonBlock = document.createElement('div');
-      skeletonBlock.className = `tf-media-block tf-media-skeleton tf-media-skeleton-${type.startsWith('image') ? 'img' : 'video'}`;
-      skeletonBlock.dataset.loadingId = id;
-      skeletonBlock.innerHTML = `
+      const skeletonHTML = `<div class="tf-media-block tf-media-skeleton tf-media-skeleton-${type.startsWith('image') ? 'img' : 'video'}" data-loading-id="${id}">
         <div class="tf-skeleton-anim" style="width: 100%; height: ${type.startsWith('image') ? 180 : 180}px; border-radius: 6px; background: #f0f0f0; animation: pulse 1.5s ease-in-out infinite;"></div>
-      `;
+      </div><div><br></div>`;
       
-      // Insert skeleton at cursor position
-      range.insertNode(skeletonBlock);
-      
-      // Create a new line after the skeleton
-      const newLine = document.createElement('div');
-      newLine.innerHTML = '<br>';
-      skeletonBlock.parentNode.insertBefore(newLine, skeletonBlock.nextSibling);
-      
-      // Move cursor to the new line after skeleton
-      const newRange = document.createRange();
-      newRange.setStart(newLine, 0);
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
+      // Insert skeleton using execCommand to maintain undo history
+      document.execCommand('insertHTML', false, skeletonHTML);
       
       setMediaLoading(m => [...m, { id, type }]);
       
@@ -828,43 +778,29 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       
       setMediaLoading(m => m.filter(item => item.id !== id));
       
-      if (url) {
-        // Replace skeleton with actual media
-        const mediaBlock = document.createElement('div');
-        mediaBlock.className = 'tf-media-block';
-        
+      // Find the skeleton element by data-loading-id
+      const skeletonBlock = editorRef.current?.querySelector(`[data-loading-id="${id}"]`);
+      
+      if (url && skeletonBlock) {
+        // Create media HTML
+        let mediaHTML = '';
         if (type.startsWith('image')) {
-          const img = document.createElement('img');
-          img.src = url;
-          img.alt = 'uploaded image';
-          img.style.cssText = 'max-width: 100%; height: auto; border-radius: 6px; display: block;';
-          if (mediaFullscreen) {
-            img.style.cursor = 'pointer';
-            img.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              showMediaFullscreen(url, 'image');
-            });
-          }
-          mediaBlock.appendChild(img);
+          const cursorStyle = mediaFullscreen ? 'cursor: pointer;' : '';
+          mediaHTML = `<div class="tf-media-block"><img src="${url}" alt="uploaded image" style="max-width: 100%; height: auto; border-radius: 6px; display: block; ${cursorStyle}"></div>`;
         } else {
-          const video = document.createElement('video');
-          video.src = url;
-          video.controls = true;
-          video.style.cssText = 'max-width: 100%; height: auto; border-radius: 6px; display: block;';
-          if (mediaFullscreen) {
-            video.style.cursor = 'pointer';
-            video.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              showMediaFullscreen(url, 'video');
-            });
-          }
-          mediaBlock.appendChild(video);
+          const cursorStyle = mediaFullscreen ? 'cursor: pointer;' : '';
+          mediaHTML = `<div class="tf-media-block"><video src="${url}" controls style="max-width: 100%; height: auto; border-radius: 6px; display: block; ${cursorStyle}"></video></div>`;
         }
         
         // Replace skeleton with media block
-        skeletonBlock.parentNode.replaceChild(mediaBlock, skeletonBlock);
+        skeletonBlock.outerHTML = mediaHTML;
+        
+        // Process media for fullscreen if enabled
+        if (mediaFullscreen) {
+          setTimeout(() => {
+            processExistingMedia();
+          }, 0);
+        }
         
         // Update content and trigger onChange
         setTimeout(() => {
@@ -873,7 +809,7 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           }
           editorRef.current.focus();
         }, 0);
-      } else {
+      } else if (skeletonBlock) {
         // Remove skeleton if upload failed
         skeletonBlock.remove();
       }
@@ -943,7 +879,23 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     // If everything inside the editor is selected, a single Backspace/Delete clears all
     if ((e.key === 'Backspace' || e.key === 'Delete') && selectionCoversEntireEditor(editorRef)) {
       e.preventDefault();
-      clearEditorToEmptyParagraph(editorRef, updateContent, onChange);
+      // Use execCommand to maintain undo history
+      document.execCommand('delete', false, null);
+      // Ensure editor has at least one empty paragraph for cursor
+      setTimeout(() => {
+        const editor = editorRef.current;
+        if (editor && (!editor.firstChild || editor.textContent.trim() === '')) {
+          editor.appendChild(paragraph);
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.setStart(paragraph, 0);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        updateContent();
+        if (onChange) onChange(editorRef.current?.innerHTML || '');
+      }, 0);
       return;
     }
     // Handle backspace and delete for mentions and links
@@ -1148,12 +1100,23 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
             updateContent();
             if (onChange) onChange(editorRef.current?.innerHTML || '');
             return;
-          }
-          e.preventDefault();
-          elementToDelete.remove();
-          updateContent();
-          if (onChange) onChange(editorRef.current?.innerHTML || '');
-          return;
+            }
+            e.preventDefault();
+            // Use execCommand to maintain undo history
+            try {
+              const sel = window.getSelection();
+              const deleteRange = document.createRange();
+              deleteRange.selectNode(elementToDelete);
+              sel.removeAllRanges();
+              sel.addRange(deleteRange);
+              document.execCommand('delete', false, null);
+            } catch {
+              // Fallback: direct removal
+              elementToDelete.remove();
+            }
+            updateContent();
+            if (onChange) onChange(editorRef.current?.innerHTML || '');
+            return;
         }
       }
     }
@@ -1454,49 +1417,12 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       sel.removeAllRanges();
       sel.addRange(range);
     }
-    const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
 
-    // Create code block element
-    const codeBlock = document.createElement('pre');
-    codeBlock.className = 'tf-code-block';
-    codeBlock.contentEditable = 'true';
-    codeBlock.style.cssText = `
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 12px;
-      margin: 8px 0 0 0;
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-      font-size: 13px;
-      line-height: 1.4;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      overflow-x: auto;
-      color: var(--text-primary);
-    `;
+    // Create code block HTML
+    const codeBlockHTML = `<pre class="tf-code-block" contenteditable="true" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin: 8px 0 0 0; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; color: var(--text-primary);">// Enter your code here...</pre><div><br></div>`;
 
-    // Add placeholder text
-    const placeholder = document.createTextNode('// Enter your code here...');
-    codeBlock.appendChild(placeholder);
-
-    // Insert the code block
-    range.insertNode(codeBlock);
-
-    // Insert a new line after code block
-    const newLine = document.createElement('div');
-    newLine.appendChild(document.createElement('br'));
-    codeBlock.parentNode.insertBefore(newLine, codeBlock.nextSibling);
-
-    // Move cursor inside the code block (not after)
-    range.selectNodeContents(codeBlock);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-
-    // Focus on the code block
-    codeBlock.focus();
+    // Insert using execCommand to maintain undo history
+    document.execCommand('insertHTML', false, codeBlockHTML);
 
     updateContent();
     if (onChange) onChange(editorRef.current?.innerHTML || '');
@@ -1526,23 +1452,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     const urlRegex = /^https?:\/\/[^\s]+$/;
     if (urlRegex.test(text)) {
       e.preventDefault();
-      const sel = window.getSelection();
-      if (!sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
-      // Create link element
-      const a = document.createElement('a');
-      a.href = text;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.className = 'tf-link';
-      a.contentEditable = 'false';
-      a.innerText = text;
-      range.insertNode(a);
-      // Move caret after link
-      range.setStartAfter(a);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
+      // Create link HTML with a zero-width space after it to ensure cursor can move there
+      const linkHTML = `<a href="${text}" target="_blank" rel="noopener noreferrer" class="tf-link" contenteditable="false">${text}</a>\u200B`;
+      // Insert using execCommand to maintain undo history
+      document.execCommand('insertHTML', false, linkHTML);
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
       return;
@@ -1555,29 +1468,15 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         text.includes('{') || text.includes('}') || text.includes(';') || 
         text.includes('console.') || text.includes('return ') || text.includes('=>'))) {
       e.preventDefault();
-      const sel = window.getSelection();
-      if (!sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
       
-      // Create code block
-      const codeBlock = document.createElement('pre');
-      codeBlock.className = 'tf-code-block';
-      codeBlock.contentEditable = 'true';
-      codeBlock.textContent = text;
+      // Escape HTML entities in code text
+      const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       
-      // Insert code block
-      range.insertNode(codeBlock);
+      // Create code block HTML
+      const codeBlockHTML = `<pre class="tf-code-block" contenteditable="true">${escapedText}</pre><div><br></div>`;
       
-      // Insert a new line after code block
-      const newLine = document.createElement('div');
-      newLine.appendChild(document.createElement('br'));
-      codeBlock.parentNode.insertBefore(newLine, codeBlock.nextSibling);
-      
-      // Move cursor to the new line
-      range.setStart(newLine, 0);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
+      // Insert using execCommand to maintain undo history
+      document.execCommand('insertHTML', false, codeBlockHTML);
       
       updateContent();
       if (onChange) onChange(editorRef.current?.innerHTML || '');
@@ -1759,7 +1658,23 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         if (selectionCoversEntireEditor(editorRef)) {
           e.preventDefault();
           e.stopPropagation();
-          clearEditorToEmptyParagraph(editorRef, updateContent, onChange);
+          // Use execCommand to maintain undo history
+          document.execCommand('delete', false, null);
+          // Ensure editor has at least one empty paragraph for cursor
+          setTimeout(() => {
+            const editor = editorRef.current;
+            if (editor && (!editor.firstChild || editor.textContent.trim() === '')) {
+              editor.appendChild(paragraph);
+              const sel = window.getSelection();
+              const range = document.createRange();
+              range.setStart(paragraph, 0);
+              range.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+            updateContent();
+            if (onChange) onChange(editorRef.current?.innerHTML || '');
+          }, 0);
           return;
         }
         const selection = window.getSelection();
@@ -1776,7 +1691,17 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
               if (e.key === 'Backspace' && parentNode.classList.contains('tf-mention')) {
                 shrinkMentionByOneWord(parentNode);
               } else {
-                parentNode.remove();
+                // Use execCommand to maintain undo history
+                try {
+                  const deleteRange = document.createRange();
+                  deleteRange.selectNode(parentNode);
+                  selection.removeAllRanges();
+                  selection.addRange(deleteRange);
+                  document.execCommand('delete', false, null);
+                } catch {
+                  // Fallback: direct removal
+                  parentNode.remove();
+                }
               }
                 updateContent();
                 if (onChange) onChange(editorRef.current?.innerHTML || '');
