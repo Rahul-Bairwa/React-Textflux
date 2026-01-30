@@ -366,6 +366,14 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     }
 
     // Get plain text before cursor, skipping mention spans
+    // Find the container (LI if in list, or current block)
+    let container = range.startContainer;
+    while (container && container.nodeType !== Node.ELEMENT_NODE) {
+      container = container.parentNode;
+    }
+    const listItem = container?.closest('li');
+    const textContainer = listItem || container || editorRef.current;
+    
     let text = '';
     let curr = range.startContainer;
     let offset = range.startOffset;
@@ -373,7 +381,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       text = curr.textContent.slice(0, offset);
       curr = curr.previousSibling;
     }
-    while (curr) {
+    // Walk backwards through siblings, but stop at container boundary
+    while (curr && textContainer.contains(curr)) {
       if (curr.nodeType === Node.TEXT_NODE) text = curr.textContent + text;
       else if (curr.nodeType === Node.ELEMENT_NODE && !curr.classList.contains('tf-mention')) {
         // Handle <br> tags as line breaks
@@ -560,19 +569,206 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
-    // Remove @query
-    const text = range.startContainer.textContent;
+    
+    // Find the parent container (LI if in list, or current block)
+    let container = range.startContainer;
+    while (container && container.nodeType !== Node.ELEMENT_NODE) {
+      container = container.parentNode;
+    }
+    
+    // If we're in a list item, use the LI as container; otherwise use the current element
+    const listItem = container?.closest('li');
+    const searchContainer = listItem || container || editorRef.current;
+    
+    // Get plain text before cursor (same logic as handleKeyUp)
+    let text = '';
+    let curr = range.startContainer;
+    let offset = range.startOffset;
+    if (curr.nodeType === Node.TEXT_NODE) {
+      text = curr.textContent.slice(0, offset);
+      curr = curr.previousSibling;
+    }
+    while (curr) {
+      if (curr.nodeType === Node.TEXT_NODE) text = curr.textContent + text;
+      else if (curr.nodeType === Node.ELEMENT_NODE && !curr.classList?.contains('tf-mention')) {
+        if (curr.nodeName === 'BR') {
+          text = '\n' + text;
+        } else {
+          text = curr.textContent + text;
+        }
+      }
+      curr = curr.previousSibling;
+    }
+    
+    // Find the @ symbol in the extracted text
     const atIdx = text.lastIndexOf('@');
     if (atIdx !== -1) {
-      range.setStart(range.startContainer, atIdx);
-      range.deleteContents();
+      // Use TreeWalker to find all text nodes in order and locate @ position
+      const deleteRange = document.createRange();
+      let charCount = 0;
+      let foundAt = false;
+      let atNode = null;
+      let atOffset = 0;
+      let cursorNode = null;
+      let cursorOffset = 0;
+      
+      // Create TreeWalker to traverse all text nodes in the container
+      const walker = document.createTreeWalker(
+        searchContainer,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode: (node) => {
+            // Skip text nodes inside mention spans
+            let parent = node.parentNode;
+            while (parent && parent !== searchContainer) {
+              if (parent.classList?.contains('tf-mention')) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              parent = parent.parentNode;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+      
+      let textNode;
+      while ((textNode = walker.nextNode())) {
+        const nodeText = textNode.textContent;
+        const nodeLength = nodeText.length;
+        
+        // Check if cursor is in this node
+        if (textNode === range.startContainer && textNode.nodeType === Node.TEXT_NODE) {
+          cursorNode = textNode;
+          cursorOffset = range.startOffset;
+        }
+        
+        // Check if @ is in this node
+        if (!foundAt && charCount + nodeLength >= atIdx) {
+          const localAtIdx = atIdx - charCount;
+          if (localAtIdx >= 0 && localAtIdx < nodeLength) {
+            // Verify the character at this position is actually @
+            if (nodeText[localAtIdx] === '@') {
+              atNode = textNode;
+              atOffset = localAtIdx;
+              foundAt = true;
+            }
+          }
+        }
+        
+        charCount += nodeLength;
+      }
+      
+      // If we found the @, create and delete the range
+      if (foundAt && atNode) {
+        try {
+          deleteRange.setStart(atNode, atOffset);
+          if (cursorNode) {
+            deleteRange.setEnd(cursorNode, cursorOffset);
+          } else {
+            deleteRange.setEnd(range.startContainer, range.startOffset);
+          }
+          
+          deleteRange.deleteContents();
+          
+          // After deleteContents(), the range automatically points to where deletion ended
+          // This is exactly where we want to insert the mention (where @ was)
+          const newSel = window.getSelection();
+          newSel.removeAllRanges();
+          
+          // Use the deleteRange's position directly - it's already at the right place
+          deleteRange.collapse(true);
+          newSel.addRange(deleteRange);
+        } catch (e) {
+          // Fallback: try simpler approach on current text node
+          const textNode = range.startContainer;
+          if (textNode.nodeType === Node.TEXT_NODE) {
+            const textContent = textNode.textContent;
+            const atPos = textContent.lastIndexOf('@');
+            if (atPos !== -1 && atPos < range.startOffset) {
+              const fallbackRange = document.createRange();
+              fallbackRange.setStart(textNode, atPos);
+              fallbackRange.setEnd(textNode, range.startOffset);
+              fallbackRange.deleteContents();
+              
+              // After deleteContents(), the range points to where deletion ended
+              const newSel = window.getSelection();
+              newSel.removeAllRanges();
+              fallbackRange.collapse(true);
+              newSel.addRange(fallbackRange);
+            }
+          }
+        }
+      }
     }
-    // Create mention HTML with data attributes and zero-width space after it
-    const profilePicAttr = user.profile_pic ? ` data-profile-pic="${user.profile_pic}"` : '';
-    const mentionHTML = `<span class="tf-mention" contenteditable="false" data-id="${user.id}" data-value="${user.name}"${profilePicAttr}>@${user.name}</span>\u200B`;
     
-    // Use execCommand to maintain undo history
-    document.execCommand('insertHTML', false, mentionHTML);
+    // Get the current selection (should be set correctly after deletion above)
+    let finalSel = window.getSelection();
+    if (!finalSel.rangeCount) {
+      // Fallback: if selection was lost, try to recreate it
+      finalSel = window.getSelection();
+      const newRange = document.createRange();
+      
+      // Try to use the original range position
+      const textNode = range.startContainer;
+      if (textNode.nodeType === Node.TEXT_NODE && textNode.parentNode) {
+        const atPos = textNode.textContent.lastIndexOf('@');
+        if (atPos !== -1) {
+          newRange.setStart(textNode, atPos);
+        } else {
+          newRange.setStart(textNode, Math.min(range.startOffset, textNode.textContent.length));
+        }
+      } else if (textNode.parentNode) {
+        // Find first text node in parent
+        const walker = document.createTreeWalker(
+          textNode.parentNode,
+          NodeFilter.SHOW_TEXT,
+          null
+        );
+        const firstTextNode = walker.nextNode();
+        if (firstTextNode) {
+          newRange.setStart(firstTextNode, 0);
+        } else {
+          newRange.setStart(textNode.parentNode, 0);
+        }
+      } else if (editorRef.current) {
+        newRange.setStart(editorRef.current, 0);
+      }
+      
+      newRange.collapse(true);
+      finalSel.removeAllRanges();
+      finalSel.addRange(newRange);
+    }
+    
+    // Create mention element directly using DOM (more reliable than execCommand)
+    const mentionSpan = document.createElement('span');
+    mentionSpan.className = 'tf-mention';
+    mentionSpan.setAttribute('contenteditable', 'false');
+    mentionSpan.setAttribute('data-id', user.id.toString());
+    mentionSpan.setAttribute('data-value', user.name);
+    if (user.profile_pic) {
+      mentionSpan.setAttribute('data-profile-pic', user.profile_pic);
+    }
+    mentionSpan.textContent = `@${user.name}`;
+    
+    // Insert mention and zero-width space
+    if (finalSel.rangeCount) {
+      const insertRange = finalSel.getRangeAt(0);
+      
+      // Insert mention span
+      insertRange.insertNode(mentionSpan);
+      
+      // Insert zero-width space after mention
+      const zws = document.createTextNode('\u200B');
+      insertRange.setStartAfter(mentionSpan);
+      insertRange.collapse(true);
+      insertRange.insertNode(zws);
+      
+      // Move cursor after zero-width space
+      insertRange.setStartAfter(zws);
+      insertRange.collapse(true);
+      finalSel.removeAllRanges();
+      finalSel.addRange(insertRange);
+    }
     
     setShowMention(false);
     setMentionQuery('');
@@ -581,7 +777,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
     if (onChange && editorRef.current) {
       onChange(editorRef.current.innerHTML);
     }
-    // Move cursor after mention insertion and ensure it's not inside the mention span
+    
+    // Ensure cursor is positioned correctly
     setTimeout(() => {
       const sel = window.getSelection();
       if (sel.rangeCount) {
@@ -598,7 +795,9 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           sel.addRange(range);
         }
       }
-      editorRef.current.focus();
+      if (editorRef.current) {
+        editorRef.current.focus();
+      }
       
       // Reset the flag after a short delay
       setTimeout(() => {
@@ -1071,11 +1270,26 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
           let currentNode = range.startContainer;
           
           if (e.key === 'Backspace') {
-            // Only check if we're immediately before a mention/link
-            if (range.collapsed && currentNode.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
-              let prevSibling = currentNode.previousSibling;
-              if (prevSibling && isMentionOrLink(prevSibling)) {
-                return prevSibling;
+            // Check if cursor is in a zero-width space node (inserted after mentions)
+            if (range.collapsed && currentNode.nodeType === Node.TEXT_NODE) {
+              // Check if this is a zero-width space node
+              const isZeroWidthSpace = currentNode.textContent === '\u200B' || 
+                                      (currentNode.textContent.length === 1 && currentNode.textContent.charCodeAt(0) === 0x200B);
+              
+              if (isZeroWidthSpace) {
+                // Check previous sibling for mention/link
+                let prevSibling = currentNode.previousSibling;
+                if (prevSibling && isMentionOrLink(prevSibling)) {
+                  return prevSibling;
+                }
+              }
+              
+              // Check if cursor is at the start of a text node (might be after zero-width space was deleted)
+              if (range.startOffset === 0) {
+                let prevSibling = currentNode.previousSibling;
+                if (prevSibling && isMentionOrLink(prevSibling)) {
+                  return prevSibling;
+                }
               }
             }
             
@@ -1084,6 +1298,18 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
               const prevChild = currentNode.childNodes[range.startOffset - 1];
               if (prevChild && isMentionOrLink(prevChild)) {
                 return prevChild;
+              }
+              // Also check if previous child is a zero-width space, then check its previous sibling
+              if (prevChild && prevChild.nodeType === Node.TEXT_NODE) {
+                const textContent = prevChild.textContent;
+                const isZeroWidthSpace = textContent === '\u200B' || 
+                                        (textContent.length === 1 && textContent.charCodeAt(0) === 0x200B);
+                if (isZeroWidthSpace) {
+                  const mentionSibling = prevChild.previousSibling;
+                  if (mentionSibling && isMentionOrLink(mentionSibling)) {
+                    return mentionSibling;
+                  }
+                }
               }
             }
           }
