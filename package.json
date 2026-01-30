@@ -1,6 +1,6 @@
 {
   "name": "react-textflux",
-  "version": "1.1.15",
+  "version": "1.1.16",
   "type": "module",
   "main": "dist/index.umd.js",
   "module": "dist/index.es.js",
