@@ -651,3 +651,11 @@ a.tf-link:hover {
 .tf-capitalize{
   text-transform: capitalize;
 }
+
+/* Smart Toolbar Styles */
+.tf-toolbar {
+  border-top: 1px solid var(--border-color);
+}
+.tf-toolbar.tf-toolbar-collapsed {
+  border-top: none;
+}

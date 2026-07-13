@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Tooltip from './Tooltip';
 import Toolbar from './Toolbar';
 import MentionList from './MentionList';
 import EmojiPicker from './EmojiPicker';
@@ -274,8 +275,22 @@ function restoreCaretAtOffset(editorElement, targetOffset) {
   }
 }
 
-export default function Editor({ theme = 'light', onMediaUpload, mentions = [], onChange, value, onEnter, mediaFullscreen = false }) {
+export default function Editor({
+  theme = 'light',
+  onMediaUpload,
+  mentions = [],
+  onChange,
+  value,
+  onEnter,
+  mediaFullscreen = false,
+  smartToolbar = false,
+  defaultShowToolbar = true,
+  toggleButtonPosition = 'bottom-right',
+  className = '',
+  style = {}
+}) {
   const { editorRef, html, updateContent } = useEditor();
+  const [showToolbar, setShowToolbar] = useState(defaultShowToolbar);
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
@@ -1573,6 +1588,11 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
       e.preventDefault();
       handleInsertCodeBlock();
     }
+    // Toggle Toolbar: Ctrl+Shift+F
+    if (smartToolbar && (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      setShowToolbar(prev => !prev);
+    }
     // Copy: Ctrl+C - Let the default copy behavior work with our custom handler
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       // Don't prevent default - let our handleCopy function handle it
@@ -1976,7 +1996,8 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
 
   return (
     <div
-      className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''}`}
+      className={`tf-editor-container${theme === 'dark' ? ' tf-dark' : ''} ${className}${smartToolbar ? ' tf-editor-container-smart' : ''}${smartToolbar && !showToolbar ? ' tf-toolbar-collapsed' : ''}${smartToolbar && !showToolbar ? ` tf-toggle-pos-${toggleButtonPosition}` : ''}`}
+      style={style}
     >
       <div
         ref={editorRef}
@@ -2030,6 +2051,10 @@ export default function Editor({ theme = 'light', onMediaUpload, mentions = [], 
         onInsertCodeBlock={handleInsertCodeBlock}
         isFocused={isFocused}
         isCodeBlockActive={isCodeBlockActiveState}
+        smartToolbar={smartToolbar}
+        showToolbar={showToolbar}
+        onToggleToolbar={() => setShowToolbar(prev => !prev)}
+        toggleButtonPosition={toggleButtonPosition}
       />
       {showMention && (
         <MentionList

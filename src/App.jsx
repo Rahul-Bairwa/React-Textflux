@@ -53,6 +53,10 @@ export default function App() {
    ];
   const [content, setContent] = useState('');
   const [isTransformingLinks, setIsTransformingLinks] = useState(false);
+  const [smartToolbar, setSmartToolbar] = useState(true);
+  const [defaultShowToolbar, setDefaultShowToolbar] = useState(true);
+  const [toggleButtonPosition, setToggleButtonPosition] = useState('bottom-right');
+  const [theme, setTheme] = useState('light');
 
   const contentRef = useRef(content);
   const lastSavedContent = useRef('');
@@ -109,19 +113,84 @@ export default function App() {
   );
 
   return (
-    <div>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: '20px', color: theme === 'dark' ? '#fff' : '#000' }}>React Textflux Demo</h2>
+      
+      <div style={{ 
+        display: 'flex', 
+        gap: '20px', 
+        padding: '15px', 
+        background: theme === 'dark' ? '#2d323f' : '#f0f2f5', 
+        color: theme === 'dark' ? '#fff' : '#000', 
+        borderRadius: '8px', 
+        marginBottom: '20px', 
+        border: '1px solid #ddd', 
+        fontSize: '14px', 
+        flexWrap: 'wrap' 
+      }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+          <input type="checkbox" checked={smartToolbar} onChange={(e) => setSmartToolbar(e.target.checked)} />
+          Enable Smart Toolbar Mode
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', opacity: smartToolbar ? 1 : 0.5 }}>
+          <input type="checkbox" disabled={!smartToolbar} checked={defaultShowToolbar} onChange={(e) => setDefaultShowToolbar(e.target.checked)} />
+          Default Show Toolbar
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: smartToolbar ? 1 : 0.5 }}>
+          Toggle Button Position:
+          <select 
+            disabled={!smartToolbar} 
+            value={toggleButtonPosition} 
+            onChange={(e) => setToggleButtonPosition(e.target.value)} 
+            style={{ 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              border: '1px solid #ccc', 
+              background: theme === 'dark' ? '#3e4451' : '#fff', 
+              color: theme === 'dark' ? '#fff' : '#000' 
+            }}
+          >
+            <option value="bottom-right">Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="top-right">Top Right</option>
+            <option value="top-left">Top Left</option>
+          </select>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+          Theme:
+          <select 
+            value={theme} 
+            onChange={(e) => setTheme(e.target.value)} 
+            style={{ 
+              padding: '4px 8px', 
+              borderRadius: '4px', 
+              border: '1px solid #ccc', 
+              background: theme === 'dark' ? '#3e4451' : '#fff', 
+              color: theme === 'dark' ? '#fff' : '#000' 
+            }}
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
+
       <Editor
-        theme="light"
+        key={`${smartToolbar}-${defaultShowToolbar}`}
+        theme={theme}
         className="my-mention-box"
         mentions={mentions}
         onChange={setContent}
         value={content}
         placeholder="Write something..."
         mediaFullscreen={true}
+        smartToolbar={smartToolbar}
+        defaultShowToolbar={defaultShowToolbar}
+        toggleButtonPosition={toggleButtonPosition}
         onEnter={() => console.log('enter')}
       />
       {isTransformingLinks && (
-        <p className="tf-text-center tf-text-sm">Transforming links...</p>
+        <p className="tf-text-center tf-text-sm" style={{ marginTop: '10px' }}>Transforming links...</p>
       )}
     </div>
   );

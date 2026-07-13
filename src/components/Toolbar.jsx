@@ -58,7 +58,19 @@ const tooltips = {
 
 };
 
-export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji, onClearFormatting, onInsertCodeBlock, isFocused, isCodeBlockActive }) {
+export default function Toolbar({
+  theme = 'light',
+  onInsertMedia,
+  onInsertEmoji,
+  onClearFormatting,
+  onInsertCodeBlock,
+  isFocused,
+  isCodeBlockActive,
+  smartToolbar = false,
+  showToolbar = true,
+  onToggleToolbar,
+  toggleButtonPosition = 'bottom-right'
+}) {
   const imgInput = useRef();
   const vidInput = useRef();
   const [, setRerender] = useState(0);
@@ -77,9 +89,145 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
     }
   };
 
+  const showFormattingItems = !smartToolbar || showToolbar;
+  const isLeft = toggleButtonPosition.includes('left');
+
+  const toggleBtn = smartToolbar && (
+    <div style={(!isLeft && showToolbar) ? { marginLeft: 'auto', display: 'flex' } : (toggleButtonPosition.includes('right') ? { marginLeft: 'auto', display: 'flex' } : { display: 'flex' })}>
+      <Tooltip label={showToolbar ? "Hide Formatting" : "Show Formatting"} shortcut="Ctrl+Shift+F" theme={theme}>
+        <button
+          title={showToolbar ? "Hide Formatting" : "Show Formatting"}
+          className={`tf-toolbar-btn tf-toolbar-toggle-btn${showToolbar ? ' active' : ''}`}
+          tabIndex={0}
+          onMouseDown={e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onToggleToolbar) onToggleToolbar();
+          }}
+        >
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+            <path d="M3 16h10M4 12l4-8h2l4 8M5.5 9h7M15 4l3 3-7 7H8v-3l7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </Tooltip>
+    </div>
+  );
+
+  const handleListClick = (listType) => {
+    try {
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) {
+        format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+        setRerender(v => v + 1);
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      let node = range.startContainer;
+      while (node && node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode;
+      }
+
+      const currentLi = node && (node.nodeName === 'LI' ? node : node.closest && node.closest('li'));
+      if (!currentLi) {
+        // Not inside a list
+        if (listType === 'orderedList') {
+          // Try to continue numbering from the immediately previous OL if present
+          const editorEl = document.querySelector('.tf-editor-area');
+          let block = node;
+          while (block && block.parentNode && editorEl && block.parentNode !== editorEl) {
+            block = block.parentNode;
+          }
+          const prev = block && block.previousSibling;
+          const isEmptyBlock = block && ((block.textContent || '').trim() === '' || (block.nodeName === 'DIV' && block.innerHTML === '<br>'));
+          if (prev && prev.nodeName === 'OL' && editorEl && isEmptyBlock) {
+            // Compute next start = last number + 1
+            const startAttr = parseInt(prev.getAttribute('start') || '1', 10) || 1;
+            const lis = Array.from(prev.children || []).filter(el => el.nodeName === 'LI');
+            const visibleLis = lis.filter(li => (li.textContent || '').trim() !== '' || li.querySelector('ol,ul'));
+            const lastNumber = startAttr + Math.max(visibleLis.length, lis.length) - 1;
+            const nextStart = Math.max(lastNumber + 1, 1);
+
+            const ol = document.createElement('ol');
+            if (nextStart > 1) ol.setAttribute('start', String(nextStart));
+            const li = document.createElement('li');
+            li.innerHTML = '<br>';
+            ol.appendChild(li);
+
+            // Insert OL at current block position and remove the empty block
+            if (block.parentNode) {
+              block.parentNode.insertBefore(ol, block);
+              block.parentNode.removeChild(block);
+
+              const newRange = document.createRange();
+              newRange.setStart(li, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              setRerender(v => v + 1);
+              return;
+            }
+          }
+        }
+        // Default behavior
+        format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+        setRerender(v => v + 1);
+        return;
+      }
+
+      // Inside an LI → ensure nested list. If current LI is empty, attach sublist to previous LI to avoid numbering gaps
+      const nestedTag = listType === 'orderedList' ? 'OL' : 'UL';
+      const isEmptyLi = (currentLi.textContent || '').replace(/\u00A0/g, '').trim() === '' && (!currentLi.querySelector('ol,ul'));
+      let hostLi = currentLi;
+      if (isEmptyLi && currentLi.previousElementSibling && currentLi.previousElementSibling.nodeName === 'LI') {
+        hostLi = currentLi.previousElementSibling;
+      }
+
+      let nestedList = null;
+      for (let i = 0; i < hostLi.childNodes.length; i++) {
+        const child = hostLi.childNodes[i];
+        if (child.nodeType === Node.ELEMENT_NODE && child.nodeName === nestedTag) {
+          nestedList = child;
+          break;
+        }
+      }
+      if (!nestedList) {
+        nestedList = document.createElement(nestedTag);
+        hostLi.appendChild(nestedList);
+      }
+
+      // If sublist was attached to previous LI and current LI was empty, remove the empty LI
+      if (hostLi !== currentLi && isEmptyLi) {
+        const liToRemove = currentLi;
+        const parentList = liToRemove.parentNode;
+        liToRemove.remove();
+        // If parent list becomes empty, keep it (user is still in list context)
+      }
+
+      // Create a new nested list item and place caret inside
+      const nestedItem = document.createElement('li');
+      nestedItem.innerHTML = '<br>';
+      nestedList.appendChild(nestedItem);
+
+      const newRange = document.createRange();
+      newRange.setStart(nestedItem, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+
+      setRerender(v => v + 1);
+    } catch (err) {
+      // Fallback to default behavior
+      format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
+      setRerender(v => v + 1);
+    }
+  };
+
   return (
-    <div className={`tf-toolbar ${theme === 'dark' ? 'tf-dark' : ''}`}>
-      {Object.entries(icons).map(([key, icon]) => {
+    <div className={`tf-toolbar ${theme === 'dark' ? 'tf-dark' : ''}${(!showToolbar && smartToolbar) ? ' tf-toolbar-collapsed' : ''}`}>
+      {isLeft && toggleBtn}
+
+      {showFormattingItems && Object.entries(icons).map(([key, icon]) => {
         if (key === 'image' || key === 'video' || key === 'emoji' || key === 'clear' || key === 'code') return null;
         let active = false;
         if (isFocused) {
@@ -96,115 +244,6 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
             active = isFormatActive('insertUnorderedList');
           }
         }
-        const handleListClick = (listType) => {
-          try {
-            const selection = window.getSelection();
-            if (!selection || !selection.rangeCount) {
-              format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
-              setRerender(v => v + 1);
-              return;
-            }
-
-            const range = selection.getRangeAt(0);
-            let node = range.startContainer;
-            while (node && node.nodeType === Node.TEXT_NODE) {
-              node = node.parentNode;
-            }
-
-            const currentLi = node && (node.nodeName === 'LI' ? node : node.closest && node.closest('li'));
-            if (!currentLi) {
-              // Not inside a list
-              if (listType === 'orderedList') {
-                // Try to continue numbering from the immediately previous OL if present
-                const editorEl = document.querySelector('.tf-editor-area');
-                let block = node;
-                while (block && block.parentNode && editorEl && block.parentNode !== editorEl) {
-                  block = block.parentNode;
-                }
-                const prev = block && block.previousSibling;
-                const isEmptyBlock = block && ((block.textContent || '').trim() === '' || (block.nodeName === 'DIV' && block.innerHTML === '<br>'));
-                if (prev && prev.nodeName === 'OL' && editorEl && isEmptyBlock) {
-                  // Compute next start = last number + 1
-                  const startAttr = parseInt(prev.getAttribute('start') || '1', 10) || 1;
-                  const lis = Array.from(prev.children || []).filter(el => el.nodeName === 'LI');
-                  const visibleLis = lis.filter(li => (li.textContent || '').trim() !== '' || li.querySelector('ol,ul'));
-                  const lastNumber = startAttr + Math.max(visibleLis.length, lis.length) - 1;
-                  const nextStart = Math.max(lastNumber + 1, 1);
-
-                  const ol = document.createElement('ol');
-                  if (nextStart > 1) ol.setAttribute('start', String(nextStart));
-                  const li = document.createElement('li');
-                  li.innerHTML = '<br>';
-                  ol.appendChild(li);
-
-                  // Insert OL at current block position and remove the empty block
-                  if (block.parentNode) {
-                    block.parentNode.insertBefore(ol, block);
-                    block.parentNode.removeChild(block);
-
-                    const newRange = document.createRange();
-                    newRange.setStart(li, 0);
-                    newRange.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                    setRerender(v => v + 1);
-                    return;
-                  }
-                }
-              }
-              // Default behavior
-              format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
-              setRerender(v => v + 1);
-              return;
-            }
-
-            // Inside an LI → ensure nested list. If current LI is empty, attach sublist to previous LI to avoid numbering gaps
-            const nestedTag = listType === 'orderedList' ? 'OL' : 'UL';
-            const isEmptyLi = (currentLi.textContent || '').replace(/\u00A0/g, '').trim() === '' && (!currentLi.querySelector('ol,ul'));
-            let hostLi = currentLi;
-            if (isEmptyLi && currentLi.previousElementSibling && currentLi.previousElementSibling.nodeName === 'LI') {
-              hostLi = currentLi.previousElementSibling;
-            }
-
-            let nestedList = null;
-            for (let i = 0; i < hostLi.childNodes.length; i++) {
-              const child = hostLi.childNodes[i];
-              if (child.nodeType === Node.ELEMENT_NODE && child.nodeName === nestedTag) {
-                nestedList = child;
-                break;
-              }
-            }
-            if (!nestedList) {
-              nestedList = document.createElement(nestedTag);
-              hostLi.appendChild(nestedList);
-            }
-
-            // If sublist was attached to previous LI and current LI was empty, remove the empty LI
-            if (hostLi !== currentLi && isEmptyLi) {
-              const liToRemove = currentLi;
-              const parentList = liToRemove.parentNode;
-              liToRemove.remove();
-              // If parent list becomes empty, keep it (user is still in list context)
-            }
-
-            // Create a new nested list item and place caret inside
-            const nestedItem = document.createElement('li');
-            nestedItem.innerHTML = '<br>';
-            nestedList.appendChild(nestedItem);
-
-            const newRange = document.createRange();
-            newRange.setStart(nestedItem, 0);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-
-            setRerender(v => v + 1);
-          } catch (err) {
-            // Fallback to default behavior
-            format(listType === 'orderedList' ? 'insertOrderedList' : 'insertUnorderedList');
-            setRerender(v => v + 1);
-          }
-        };
 
         return (
           <Tooltip key={key} label={tooltips[key].label} shortcut={tooltips[key].shortcut} theme={theme}>
@@ -231,56 +270,63 @@ export default function Toolbar({ theme = 'light', onInsertMedia, onInsertEmoji,
           </Tooltip>
         );
       })}
-      <Tooltip label={tooltips.image.label} shortcut={tooltips.image.shortcut} theme={theme}>
-        <button title="Insert Image" className="tf-toolbar-btn" tabIndex={0} onClick={e => { e.preventDefault(); e.stopPropagation(); handleFile('image'); }}>{icons.image}</button>
-      </Tooltip>
-      <input
-        type="file"
-        accept="image/*"
-        ref={imgInput}
-        className="tf-file-input"
-        onChange={e => {
-          try {
-            if (e.target.files && e.target.files[0]) {
-              onInsertMedia(e.target.files[0], e.target.files[0].type);
-            }
-            e.target.value = '';
-          } catch (error) {
-            console.error('Error handling image file:', error);
-            e.target.value = '';
-          }
-        }}
-      />
-      <Tooltip label={tooltips.video.label} shortcut={tooltips.video.shortcut} theme={theme}>
-        <button title="Insert Video" className="tf-toolbar-btn" tabIndex={0} onClick={e => { e.preventDefault(); e.stopPropagation(); handleFile('video'); }}>{icons.video}</button>
-      </Tooltip>
-      <input
-        type="file"
-        accept="video/*"
-        ref={vidInput}
-        className="tf-file-input"
-        onChange={e => {
-          try {
-            if (e.target.files && e.target.files[0]) {
-              onInsertMedia(e.target.files[0], e.target.files[0].type);
-            }
-            e.target.value = '';
-          } catch (error) {
-            console.error('Error handling video file:', error);
-            e.target.value = '';
-          }
-        }}
-      />
 
-      <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
-        <button title="Emoji (type : to search)" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertEmoji('', true); }}>{icons.emoji}</button>
-      </Tooltip>
-      <Tooltip label={tooltips.code.label} shortcut={tooltips.code.shortcut} theme={theme}>
-        <button title="Code Block" className={`tf-toolbar-btn${isCodeBlockActive ? ' active' : ''}`} tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertCodeBlock(); }}>{icons.code}</button>
-      </Tooltip>
-      <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
-        <button title="Clear Formatting" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onClearFormatting(); }}>{icons.clear}</button>
-      </Tooltip>
+      {showFormattingItems && (
+        <>
+          <Tooltip label={tooltips.image.label} shortcut={tooltips.image.shortcut} theme={theme}>
+            <button title="Insert Image" className="tf-toolbar-btn" tabIndex={0} onClick={e => { e.preventDefault(); e.stopPropagation(); handleFile('image'); }}>{icons.image}</button>
+          </Tooltip>
+          <input
+            type="file"
+            accept="image/*"
+            ref={imgInput}
+            className="tf-file-input"
+            onChange={e => {
+              try {
+                if (e.target.files && e.target.files[0]) {
+                  onInsertMedia(e.target.files[0], e.target.files[0].type);
+                }
+                e.target.value = '';
+              } catch (error) {
+                console.error('Error handling image file:', error);
+                e.target.value = '';
+              }
+            }}
+          />
+          <Tooltip label={tooltips.video.label} shortcut={tooltips.video.shortcut} theme={theme}>
+            <button title="Insert Video" className="tf-toolbar-btn" tabIndex={0} onClick={e => { e.preventDefault(); e.stopPropagation(); handleFile('video'); }}>{icons.video}</button>
+          </Tooltip>
+          <input
+            type="file"
+            accept="video/*"
+            ref={vidInput}
+            className="tf-file-input"
+            onChange={e => {
+              try {
+                if (e.target.files && e.target.files[0]) {
+                  onInsertMedia(e.target.files[0], e.target.files[0].type);
+                }
+                e.target.value = '';
+              } catch (error) {
+                console.error('Error handling video file:', error);
+                e.target.value = '';
+              }
+            }}
+          />
+
+          <Tooltip label={tooltips.emoji.label} shortcut={tooltips.emoji.shortcut} theme={theme}>
+            <button title="Emoji (type : to search)" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertEmoji('', true); }}>{icons.emoji}</button>
+          </Tooltip>
+          <Tooltip label={tooltips.code.label} shortcut={tooltips.code.shortcut} theme={theme}>
+            <button title="Code Block" className={`tf-toolbar-btn${isCodeBlockActive ? ' active' : ''}`} tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onInsertCodeBlock(); }}>{icons.code}</button>
+          </Tooltip>
+          <Tooltip label={tooltips.clear.label} shortcut={tooltips.clear.shortcut} theme={theme}>
+            <button title="Clear Formatting" className="tf-toolbar-btn" tabIndex={0} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onClearFormatting(); }}>{icons.clear}</button>
+          </Tooltip>
+        </>
+      )}
+
+      {!isLeft && toggleBtn}
     </div>
   );
 } 
