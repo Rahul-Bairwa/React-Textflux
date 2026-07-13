@@ -1,6 +1,7 @@
 # React Textflux
 
 ## 🚀 What's New
+- **Smart Toolbar Mode:** Toggle show/hide formatting toolbar using a dedicated button or keyboard shortcut (`Ctrl+Shift+F`), keeping the height stable (no layout jumps) and formatting shortcuts active always.
 - **Production ready:** All major bugs fixed, UX polished
 - **Enhanced Emoji Picker:** Type `:` in editor to trigger emoji search, keyboard navigation with arrow keys, auto-scroll, recently used emojis, and category organization
 - **Mention dropdown:** Keyboard navigation auto-scrolls, dark/light theme highlight, visible text always
@@ -174,6 +175,23 @@ function App() {
 
 ---
 
+## Smart Toolbar Mode
+
+- **Toggle Formatting Toolbar:** Expand or collapse the formatting toolbar using the dedicated toggle button inside the toolbar, or using the keyboard shortcut **Ctrl+Shift+F** (Cmd+Shift+F on Mac) when typing.
+- **Stable Editor Height:** When collapsed, the toolbar remains rendered at the bottom but only displays the toggle button. This keeps the total height of the editor perfectly stable (no layout jumps) when toggling.
+- **Shortcuts Active Always:** Standard formatting keyboard shortcuts (`Ctrl+B`, `Ctrl+I`, `Ctrl+U`, etc.) remain fully functional even when the toolbar is collapsed.
+- **Flexible Position:** Choose whether the toggle button sits at the `'bottom-right'` (end) or `'bottom-left'` (start) of the toolbar.
+
+```jsx
+<Editor
+  smartToolbar={true}
+  defaultShowToolbar={true} // Initial state: visible
+  toggleButtonPosition="bottom-right" // or "bottom-left"
+/>
+```
+
+---
+
 ## Smart Cursor Positioning
 
 The editor now automatically positions the cursor in the most logical place after various operations:
@@ -226,6 +244,7 @@ The editor now automatically positions the cursor in the most logical place afte
 | Ordered List | Ctrl+Shift+L / Cmd+Shift+L |
 | Unordered List | Ctrl+Shift+U / Cmd+Shift+U |
 | **Code Block** | **Ctrl+K / Cmd+K** |
+| **Toggle Toolbar** | **Ctrl+Shift+F / Cmd+Shift+F** |
 
 ### Emoji Navigation
 | Action | Key |
@@ -247,6 +266,9 @@ The editor now automatically positions the cursor in the most logical place afte
 | `onChange`          | function | undefined | Called with latest HTML string on any content change (typing, media, mentions, formatting, etc). |
 | `mediaFullscreen`   | boolean  | false     | If true, images/videos are clickable and open in fullscreen overlay. If false or not set, media is not clickable. |
 | `onEnter`           | function | undefined | Called with the keyboard event when Enter is pressed in the editor. Use for custom submit, save, or clear logic. |
+| `smartToolbar`      | boolean  | false     | If true, enables Smart Toolbar Mode where the formatting toolbar can be collapsed/expanded. |
+| `defaultShowToolbar`| boolean  | true      | If smartToolbar is true, determines if the toolbar is visible by default. |
+| `toggleButtonPosition`| string | 'bottom-right' | Position of the formatting toggle button inside the toolbar ('bottom-right', 'bottom-left', 'top-right', 'top-left'). |
 
 ---
 
